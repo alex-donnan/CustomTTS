@@ -17,6 +17,36 @@ import requests
 import urllib.parse
 
 
+def replace_emoji(message):
+    message = re.sub(':[\\w_]+:', lambda m: re.sub('[:_]', ' ', m.group()), emoji.demojize(message))
+    return message
+
+
+def convert_numbers(message):
+    message = re.sub('£(\\d+)', lambda m: num2words(m.group(1), to='currency', currency='GBP'), message)
+    message = re.sub('\\$(\\d+)', lambda m: num2words(m.group(1), to='currency', currency='USD'), message)
+    message = re.sub('(\\d+)', lambda m: num2words(m.group()), message)
+    return message
+
+
+def remove_cheermotes(raw_message):
+    word_list = raw_message.split(" ")
+    message = ""
+    for word in word_list:
+        if word.startswith(tuple(ttsController.PREFIXES)) and word[-1].isdigit():
+            continue
+        message += word + " "
+    message.strip()
+    return message
+
+
+async def kill(listener: tuple):
+    twitch, pubsub, uuid = listener
+    await pubsub.unlisten(uuid)
+    pubsub.stop()
+    await twitch.close()
+
+
 class ttsController:
     USER_SCOPE = [AuthScope.BITS_READ]
     PREFIXES = prefixes = ["Cheer", "hryCheer", "BibleThump", "cheerwhal", "Corgo", "uni", "ShowLove", "Party",
@@ -39,34 +69,14 @@ class ttsController:
         self.tts_queue = queue.Queue()
         self.tts_client = TTS(TTS.list_models()[0])
 
-    def remove_cheermotes(self, raw_message):
-        word_list = raw_message.split(" ")
-        message = ""
-        for word in word_list:
-            if word.startswith(tuple(ttsController.PREFIXES)) and word[-1].isdigit():
-                continue
-            message += word + " "
-        message.strip()
-        return message
-
-    def convert_numbers(self, message):
-        message = re.sub('£(\\d+)', lambda m: num2words(m.group(1), to='currency', currency='GBP'), message)
-        message = re.sub('\\$(\\d+)', lambda m: num2words(m.group(1), to='currency', currency='USD'), message)
-        message = re.sub('(\\d+)', lambda m: num2words(m.group()), message)
-        return message
-
-    def replace_emoji(self, message):
-        message = re.sub(':[\\w_]+:', lambda m: re.sub('[:_]', ' ', m.group()), emoji.demojize(message))
-        return message
-
     def worker(self):
         while True:
             # if Cheer in queue, process it
             item = self.tts_queue.get()
-            message = self.remove_cheermotes(item['chat_message'])
+            message = remove_cheermotes(item['chat_message'])
             if item['bits_used'] == 2:
-                message = self.convert_numbers(message)
-                message = self.replace_emoji(message)
+                message = convert_numbers(message)
+                message = replace_emoji(message)
                 # do Coqui voice (just default voice atm)
                 self.tts_client.tts_to_file(text=message, file_path=self.output_path,
                                             speaker=self.tts_client.speakers[0],
@@ -120,13 +130,7 @@ class ttsController:
         pubsub.start()
         uuid = await pubsub.listen_bits(user.id, ttsController.on_cheer)
 
-        return (twitch, pubsub, uuid)
-
-    async def kill(self, listener: tuple):
-        twitch, pubsub, uuid = listener
-        await pubsub.unlisten(uuid)
-        pubsub.stop()
-        await twitch.close()
+        return twitch, pubsub, uuid
 
     # Get Set
 

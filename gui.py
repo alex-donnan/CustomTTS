@@ -5,18 +5,21 @@ from tkinter.messagebox import showerror
 import asyncio
 import queue
 import threading
-import ttsController as tts
+import ttsController as TTS
+
 
 class ttsGui(tk.Tk):
-    def __init__(self, app: tts):
+    def __init__(self, app: TTS):
         # TKinter setup
         super().__init__()
 
         # TTS Controller
         self.app = app
         self.listener = ()
+
         def set_listener(listener: tuple):
             self.listener = listener
+
         self.queue = queue.Queue()
 
         # Frames  
@@ -35,6 +38,7 @@ class ttsGui(tk.Tk):
         channel_entry = ttk.Entry(frm_start)
         channel_entry.insert(0, self.app.get_channel())
         channel_entry.grid(column=1, row=0)
+
         def channel_entry_cmd():
             if channel_entry.get() != "":
                 self.app.set_channel(channel_entry.get())
@@ -44,19 +48,21 @@ class ttsGui(tk.Tk):
                 frm_start.grid_forget()
             else:
                 showerror(title='Error', message='You must enter a Twitch Username')
+
         ttk.Button(
             frm_start,
             text="Connect to Twitch",
             command=channel_entry_cmd
-            ).grid(column=0, row=2, columnspan=2, sticky=tk.E)
+        ).grid(column=0, row=2, columnspan=2, sticky=tk.E)
 
     def on_closing(self):
         if self.listener != ():
             asyncio.run(self.app.kill(self.listener))
-        self.destroy();
+        self.destroy()
+
 
 if __name__ == "__main__":
-    controller = tts.ttsController()
+    controller = TTS.ttsController()
     window = ttsGui(app=controller)
     window.protocol("WM_DELETE_WINDOW", window.on_closing)
     window.mainloop()
