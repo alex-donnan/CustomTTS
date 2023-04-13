@@ -19,7 +19,8 @@ class ttsGui():
         self.themes = sg.theme_list()
 
         #Theming
-        sg.theme('DarkGray4')
+        sg.theme('Default')
+        #sg.theme('DarkBlack1')
 
         # PSGUI
         connection=[
@@ -54,7 +55,7 @@ class ttsGui():
             [message]
         ]
 
-        self.window = sg.Window('Custom TTS', layout, finalize=True)
+        self.window = sg.Window('Custom TTS', layout, icon='assets/sir.ico', finalize=True)
         self.window['USERNAME'].bind("<Return>", "_Enter")
         self.window['MSG'].bind("<Return>", "_Enter")
 
