@@ -14,6 +14,7 @@ import os
 import queue
 import re
 import requests
+import time
 import urllib.parse
 
 
@@ -40,15 +41,8 @@ def remove_cheermotes(raw_message):
     return message
 
 
-async def kill(listener: tuple):
-    twitch, pubsub, uuid = listener
-    await pubsub.unlisten(uuid)
-    pubsub.stop()
-    await twitch.close()
-
-
 class ttsController:
-    USER_SCOPE = [AuthScope.BITS_READ]
+    USER_SCOPE = [AuthScope.BITS_READ, AuthScope.CHANNEL_MODERATE]
     PREFIXES = prefixes = ["Cheer", "hryCheer", "BibleThump", "cheerwhal", "Corgo", "uni", "ShowLove", "Party",
                            "SeemsGood",
                            "Pride", "Kappa", "FrankerZ", "HeyGuys", "DansGame", "EleGiggle", "TriHard", "Kreygasm",
@@ -56,6 +50,7 @@ class ttsController:
                            "SwiftRage", "NotLikeThis", "FailFish", "VoHiYo", "PJSalt", "MrDestructoid", "bday",
                            "RIPCheer",
                            "Shamrock"]
+    VOICES = voices = ["#harry", "#iskall", "#lewis"]
 
     def __init__(self):
         self.config = configparser.ConfigParser()
@@ -68,11 +63,21 @@ class ttsController:
         self.app_secret = self.config['DEFAULT']['TwitchAppSecret']
         self.tts_queue = queue.Queue()
         self.tts_client = TTS(TTS.list_models()[0])
+        self.pause_flag = False
 
     def worker(self):
         while True:
+            time.sleep(2)
+
             # if Cheer in queue, process it
-            item = self.tts_queue.get()
+            if self.pause_flag:
+                continue
+
+            try:
+                item = self.tts_queue.get(timeout=1)
+            except queue.Empty:
+                continue
+
             message = remove_cheermotes(item['chat_message'])
             if item['bits_used'] == 2:
                 message = convert_numbers(message)
@@ -132,21 +137,23 @@ class ttsController:
 
         return twitch, pubsub, uuid
 
-    # Get Set
+    async def kill(self, listener: tuple):
+        twitch, pubsub, uuid = listener
+        await pubsub.unlisten(uuid)
+        pubsub.stop()
+        await twitch.close()
 
-    def get_channel(self):
-        return self.target_channel
 
+    # Setters
     def set_channel(self, channel: str):
         self.target_channel = channel
         self.config.set('DEFAULT', 'TargetChannel', channel)
 
-    def get_output(self):
-        return self.output_path
 
     def set_output(self, output: str):
         self.output_path = os.path.join(output, 'output.wav')
         self.config.set('DEFAULT', 'OutputDirectory', output)
 
-    def get_queue(self):
-        return self.tts_queue
+
+    def set_queue(self, queue: queue):
+        self.tts_queue = queue
