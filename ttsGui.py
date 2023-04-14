@@ -28,7 +28,7 @@ class ttsGui():
             sg.Image(self.status, size=(16, 16), key='STATUS'),
             sg.Push(),
             sg.Text('Twitch Username:'),
-            sg.Input(key='USERNAME'),
+            sg.Input(key='USERNAME', default_text=self.app.target_channel),
             sg.Button('Connect')
         ]
 
