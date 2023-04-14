@@ -55,17 +55,19 @@ class ttsController:
     def __init__(self):
         self.config = configparser.ConfigParser()
         self.config.read('config.ini')
+
         self.output_path = os.path.join(self.config['DEFAULT']['OutputDirectory'], "output.wav")
         self.brian_output_path = os.path.join(self.config['DEFAULT']['OutputDirectory'], "output.mp3")
         self.credentials_path = os.path.join(self.config['DEFAULT']['OutputDirectory'], "credentials.json")
         self.target_channel = self.config['DEFAULT']['TargetChannel']
         self.app_id = self.config['DEFAULT']['TwitchAppId']
         self.app_secret = self.config['DEFAULT']['TwitchAppSecret']
-        self.tts_queue = queue.Queue()
+        
         self.tts_client = TTS(TTS.list_models()[0])
-        self.tts_path = os.path.join(os.path.dirname(inspect.getfile(TTS)), '.models.json')
+        self.tts_queue = queue.Queue()
+        
         self.pause_flag = False
-        self.model_list = eval(self.config['DEFAULT']['Models'])
+        self.speaker_list = eval(self.config['DEFAULT']['Speakers'])
 
     def worker(self):
         while True:
@@ -84,9 +86,8 @@ class ttsController:
                 message = convert_numbers(message)
                 message = replace_emoji(message)
                 # do Coqui voice (just default voice atm)
-                self.tts_client.tts_to_file(text=message, file_path=self.output_path,
-                                            speaker=self.tts_client.speakers[0],
-                                            language=self.tts_client.languages[0])
+                self.tts_client[voice].tts_to_file(text=message, file_path=self.output_path)
+
                 playsound(self.output_path)
                 os.remove(self.output_path)
                 self.tts_queue.task_done()
@@ -156,17 +157,3 @@ class ttsController:
         self.config.set('DEFAULT', 'OutputDirectory', output)
         with open('config.ini', 'w') as configfile:
             self.config.write(configfile)
-
-    def add_model(self, keyword: str, folder: str):
-        if os.path.exists(self.tts_path):
-            with open(self.tts_path, 'r') as f:
-                models = json.load(f)
-                models['tts_models']['multilingual']['multi-dataset'][os.path.basename(folder)] = { "description": "A model trained on " + os.path.basename(folder) }
-                
-            with open(self.tts_path, 'w') as f:
-                json.dump(models, f)
-
-            self.model_list[keyword] = 'tts_models--multilingual--multi-dataset--' + os.path.basename(folder)
-            self.config.set('DEFAULT', 'Models', str(self.model_list))
-            with open('config.ini', 'w') as configfile:
-                self.config.write(configfile)

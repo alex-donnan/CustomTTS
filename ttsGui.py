@@ -1,5 +1,4 @@
 import asyncio
-import distutils.dir_util
 import os
 import PySimpleGUI as sg
 import queue
@@ -17,7 +16,6 @@ class ttsGui():
         self.current_queue_list = []
         self.listener = ()
         self.models = []
-        self.model_path = os.path.join(os.path.expanduser('~'), 'AppData', 'Local', 'tts')
         self.status = 'assets/red.png'
         self.themes = sg.theme_list()
 
@@ -54,10 +52,9 @@ class ttsGui():
             ],
             [
                 sg.Input('keyword', size=(15,1), key='KEY'),
-                sg.In('folder', expand_x=True, enable_events=True, key='FOLDER'),
-                sg.FolderBrowse()
+                sg.Combo([], expand_x=True, readonly=True, key='VOICE')
             ],
-            [sg.Listbox([key + ': ' + self.app.model_list[key] for key in self.app.model_list.keys()], size=(20, 16), expand_x=True, enable_events=True, key='VOICES')]
+            [sg.Listbox([key + ': ' + self.app.speaker_list[key] for key in self.app.speaker_list.keys()], size=(20, 16), expand_x=True, enable_events=True, key='VOICES')]
         ]
         tabs = sg.TabGroup([[
             sg.Tab('Queue', queue_control),
@@ -116,18 +113,19 @@ class ttsGui():
                     self.app.tts_queue.put(data)
                     self.window['MSG'].update('');
             elif event == 'ADDVOICE':
-                if values['KEY'] != '' and values['FOLDER'] != '':
+                if values['KEY'] != '':
                     try:
-                        self.app.add_model(values['KEY'], values['FOLDER'])
-                        dst = os.path.join(self.model_path, 'tts_models--multilingual--multi-dataset--' + values['KEY'] + '/')
-                        distutils.dir_util.copy_tree(os.path.dirname(values['FOLDER']), dst)
                         self.window['KEY'].update('')
-                        self.window['FOLDER'].update('')
-                        self.window['VOICES'].update([key + ': ' + self.app.model_list[key] for key in self.app.model_list.keys()])
+                        #self.window['VOICES'].update([key + ': ' + self.app.speaker_list[key] for key in self.app.speaker_list.keys()])
                     except Exception as e:
-                        sg.popup(f'Failed to create the model: \n' + str(e))
+                        sg.popup(f'Failed to set keyword')
                 else:
-                    sg.popup(f'You\'re missing either a keyword or folder.')
+                    sg.popup(f'You\'re missing either a keyword or voice selection.')
+            elif event == 'REMOVEVOICE':
+                voices = self.window['VOICES'].get()
+                for voice in voices:
+                    self.app.remove_model(voice.split(':')[0])
+                self.window['VOICES'].update([key + ': ' + self.app.speaker_list[key] for key in self.app.speaker_list.keys()])
 
         self.window.close()
 
