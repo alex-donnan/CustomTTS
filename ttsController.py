@@ -143,17 +143,15 @@ class ttsController:
         pubsub.stop()
         await twitch.close()
 
-
     # Setters
     def set_channel(self, channel: str):
         self.target_channel = channel
         self.config.set('DEFAULT', 'TargetChannel', channel)
-
+        with open('config.ini', 'w') as configfile:
+            self.config.write(configfile)
 
     def set_output(self, output: str):
         self.output_path = os.path.join(output, 'output.wav')
         self.config.set('DEFAULT', 'OutputDirectory', output)
-
-
-    def set_queue(self, queue: queue):
-        self.tts_queue = queue
+        with open('config.ini', 'w') as configfile:
+            self.config.write(configfile)
