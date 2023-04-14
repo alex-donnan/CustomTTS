@@ -9,6 +9,7 @@ from twitchAPI.types import AuthScope
 from uuid import UUID
 import configparser
 import emoji
+import inspect
 import json
 import os
 import queue
@@ -50,29 +51,31 @@ class ttsController:
                            "SwiftRage", "NotLikeThis", "FailFish", "VoHiYo", "PJSalt", "MrDestructoid", "bday",
                            "RIPCheer",
                            "Shamrock"]
-    VOICES = voices = ["#harry", "#iskall", "#lewis"]
 
     def __init__(self):
         self.config = configparser.ConfigParser()
         self.config.read('config.ini')
+
         self.output_path = os.path.join(self.config['DEFAULT']['OutputDirectory'], "output.wav")
         self.brian_output_path = os.path.join(self.config['DEFAULT']['OutputDirectory'], "output.mp3")
         self.credentials_path = os.path.join(self.config['DEFAULT']['OutputDirectory'], "credentials.json")
         self.target_channel = self.config['DEFAULT']['TargetChannel']
         self.app_id = self.config['DEFAULT']['TwitchAppId']
         self.app_secret = self.config['DEFAULT']['TwitchAppSecret']
-        self.tts_queue = queue.Queue()
+        
         self.tts_client = TTS(TTS.list_models()[0])
+        self.tts_queue = queue.Queue()
+        
         self.pause_flag = False
+        self.speaker_list = eval(self.config['DEFAULT']['Speakers'])
 
     def worker(self):
         while True:
-            time.sleep(2)
-
             # if Cheer in queue, process it
             if self.pause_flag:
                 continue
 
+            time.sleep(2)
             try:
                 item = self.tts_queue.get(timeout=1)
             except queue.Empty:
@@ -83,9 +86,8 @@ class ttsController:
                 message = convert_numbers(message)
                 message = replace_emoji(message)
                 # do Coqui voice (just default voice atm)
-                self.tts_client.tts_to_file(text=message, file_path=self.output_path,
-                                            speaker=self.tts_client.speakers[0],
-                                            language=self.tts_client.languages[0])
+                self.tts_client[voice].tts_to_file(text=message, file_path=self.output_path)
+
                 playsound(self.output_path)
                 os.remove(self.output_path)
                 self.tts_queue.task_done()
