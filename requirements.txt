@@ -1,5 +1,6 @@
 asyncio
 emoji
+espeakng
 requests
 num2words
 playsound==1.2.2

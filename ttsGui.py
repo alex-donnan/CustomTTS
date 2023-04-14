@@ -1,6 +1,8 @@
 import asyncio
-import queue
+import distutils.dir_util
+import os
 import PySimpleGUI as sg
+import queue
 import time
 import threading
 import ttsController as TTS
@@ -14,12 +16,13 @@ class ttsGui():
         self.app = app
         self.current_queue_list = []
         self.listener = ()
-        self.queue = queue.Queue()
+        self.models = []
+        self.model_path = os.path.join(os.path.expanduser('~'), 'AppData', 'Local', 'tts')
         self.status = 'assets/red.png'
         self.themes = sg.theme_list()
 
         #Theming
-        sg.theme('Default')
+        sg.theme('DefaultNoMoreNagging')
         #sg.theme('DarkBlack1')
 
         # PSGUI
@@ -32,15 +35,34 @@ class ttsGui():
             sg.Button('Connect')
         ]
 
+        #Messages or Modules as tabs
         queue_control=[
             [
                 sg.Text('Queued Messages:'),
                 sg.Push(),
                 sg.Button('Pause', key='PAUSE'),
-                sg.Button('Clear', key='CLEAR'),
+                sg.Button('Clear', key='CLEAR')
             ],
-            [sg.Listbox([], size=(20, 16), expand_x=True, enable_events=True, key='QUEUE')]
+            [sg.Listbox([], size=(20, 18), expand_x=True, enable_events=True, key='QUEUE')]
         ]
+        model_control=[
+            [
+                sg.Text('Voice Pairings'),
+                sg.Push(),
+                sg.Button('Add', key='ADDVOICE'),
+                sg.Button('Remove', key='REMOVEVOICE')
+            ],
+            [
+                sg.Input('keyword', size=(15,1), key='KEY'),
+                sg.In('folder', expand_x=True, enable_events=True, key='FOLDER'),
+                sg.FolderBrowse()
+            ],
+            [sg.Listbox([key + ': ' + self.app.model_list[key] for key in self.app.model_list.keys()], size=(20, 16), expand_x=True, enable_events=True, key='VOICES')]
+        ]
+        tabs = sg.TabGroup([[
+            sg.Tab('Queue', queue_control),
+            sg.Tab('Speakers', model_control)
+        ]], expand_x=True)
 
         message=[
             sg.Push(),
@@ -51,7 +73,7 @@ class ttsGui():
 
         layout=[
             [connection],
-            [queue_control],
+            [tabs],
             [message]
         ]
 
@@ -93,24 +115,40 @@ class ttsGui():
                     data = {'bits_used': 1, 'user_name': 'hannah_gbs', 'chat_message': values['MSG']}
                     self.app.tts_queue.put(data)
                     self.window['MSG'].update('');
+            elif event == 'ADDVOICE':
+                if values['KEY'] != '' and values['FOLDER'] != '':
+                    try:
+                        self.app.add_model(values['KEY'], values['FOLDER'])
+                        dst = os.path.join(self.model_path, 'tts_models--multilingual--multi-dataset--' + values['KEY'] + '/')
+                        distutils.dir_util.copy_tree(os.path.dirname(values['FOLDER']), dst)
+                        self.window['KEY'].update('')
+                        self.window['FOLDER'].update('')
+                        self.window['VOICES'].update([key + ': ' + self.app.model_list[key] for key in self.app.model_list.keys()])
+                    except Exception as e:
+                        sg.popup(f'Failed to create the model: \n' + str(e))
+                else:
+                    sg.popup(f'You\'re missing either a keyword or folder.')
 
         self.window.close()
 
     def refresh_queue(self):
         while True:
             # Update connection status
-            if self.listener:
-                self.status = 'assets/green.png' if self.listener[1].is_connected() else 'assets/red.png'
-                self.window['STATUS'].update(self.status)
+            try:
+                if self.listener:
+                    self.status = 'assets/green.png' if self.listener[1].is_connected() else 'assets/red.png'
+                    self.window['STATUS'].update(self.status)
 
-            # Collect messages
-            with self.app.tts_queue.mutex:
-                messages = [item['user_name'] + ': ' + item['chat_message'] for item in list(self.app.tts_queue.queue)]
-                if messages != self.current_queue_list:
-                    self.current_queue_list = messages
-                    self.window['QUEUE'].update(messages)
+                # Collect messages
+                with self.app.tts_queue.mutex:
+                    messages = [item['user_name'] + ': ' + item['chat_message'] for item in list(self.app.tts_queue.queue)]
+                    if messages != self.current_queue_list:
+                        self.current_queue_list = messages
+                        self.window['QUEUE'].update(self.current_queue_list)
 
-            time.sleep(1)
+                time.sleep(0.5)
+            except:
+                print(f'Error updating the connection status and queue...')
 
     def clear_queue(self):
         was_paused = self.app.pause_flag
@@ -122,12 +160,6 @@ class ttsGui():
                 break
             self.app.tts_queue.task_done()
         self.app.pause_flag = was_paused
-
-    def dev_input(self, msg: str):
-        while True:
-            dev_message = msg
-            data = {'bits_used': 1, 'user_name': 'hannah_gbs', 'chat_message': dev_message}
-            self.app.tts_queue.put(data)
 
 
 if __name__ == '__main__':

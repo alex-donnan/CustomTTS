@@ -9,6 +9,7 @@ from twitchAPI.types import AuthScope
 from uuid import UUID
 import configparser
 import emoji
+import inspect
 import json
 import os
 import queue
@@ -50,7 +51,6 @@ class ttsController:
                            "SwiftRage", "NotLikeThis", "FailFish", "VoHiYo", "PJSalt", "MrDestructoid", "bday",
                            "RIPCheer",
                            "Shamrock"]
-    VOICES = voices = ["#harry", "#iskall", "#lewis"]
 
     def __init__(self):
         self.config = configparser.ConfigParser()
@@ -63,16 +63,17 @@ class ttsController:
         self.app_secret = self.config['DEFAULT']['TwitchAppSecret']
         self.tts_queue = queue.Queue()
         self.tts_client = TTS(TTS.list_models()[0])
+        self.tts_path = os.path.join(os.path.dirname(inspect.getfile(TTS)), '.models.json')
         self.pause_flag = False
+        self.model_list = eval(self.config['DEFAULT']['Models'])
 
     def worker(self):
         while True:
-            time.sleep(2)
-
             # if Cheer in queue, process it
             if self.pause_flag:
                 continue
 
+            time.sleep(2)
             try:
                 item = self.tts_queue.get(timeout=1)
             except queue.Empty:
@@ -155,3 +156,17 @@ class ttsController:
         self.config.set('DEFAULT', 'OutputDirectory', output)
         with open('config.ini', 'w') as configfile:
             self.config.write(configfile)
+
+    def add_model(self, keyword: str, folder: str):
+        if os.path.exists(self.tts_path):
+            with open(self.tts_path, 'r') as f:
+                models = json.load(f)
+                models['tts_models']['multilingual']['multi-dataset'][os.path.basename(folder)] = { "description": "A model trained on " + os.path.basename(folder) }
+                
+            with open(self.tts_path, 'w') as f:
+                json.dump(models, f)
+
+            self.model_list[keyword] = 'tts_models--multilingual--multi-dataset--' + os.path.basename(folder)
+            self.config.set('DEFAULT', 'Models', str(self.model_list))
+            with open('config.ini', 'w') as configfile:
+                self.config.write(configfile)
