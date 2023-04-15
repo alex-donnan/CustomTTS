@@ -3,7 +3,8 @@ emoji
 espeakng
 requests
 num2words
-playsound==1.2.2
 pysimplegui
-tts==0.13.0
+tts
 twitchAPI
+
+preferredsoundplayer
