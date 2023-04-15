@@ -1,5 +1,4 @@
 import asyncio
-import os
 import PySimpleGUI as sg
 import queue
 import time
@@ -19,9 +18,8 @@ class ttsGui():
         self.status = 'assets/red.png'
         self.themes = sg.theme_list()
 
-        #Theming
+        # Theming
         sg.theme('DefaultNoMoreNagging')
-        #sg.theme('DarkBlack1')
 
         # PSGUI
         connection=[
@@ -33,7 +31,7 @@ class ttsGui():
             sg.Button('Connect')
         ]
 
-        #Messages or Modules as tabs
+        # Messages or Modules as tabs
         queue_control=[
             [
                 sg.Text('Queued Messages:'),
@@ -41,7 +39,7 @@ class ttsGui():
                 sg.Button('Pause', key='PAUSE'),
                 sg.Button('Clear', key='CLEAR')
             ],
-            [sg.Listbox([], size=(20, 18), expand_x=True, enable_events=True, key='QUEUE')]
+            [sg.Multiline('', size=(80, 16), expand_x=True, disabled=True, enable_events=True, key='QUEUE', do_not_clear=False)]
         ]
         model_control=[
             [
@@ -54,7 +52,8 @@ class ttsGui():
                 sg.Input('keyword', size=(15,1), key='KEY'),
                 sg.Combo([], expand_x=True, readonly=True, key='VOICE')
             ],
-            [sg.Listbox([key + ': ' + self.app.speaker_list[key] for key in self.app.speaker_list.keys()], size=(20, 16), expand_x=True, enable_events=True, key='VOICES')]
+            [sg.Listbox([key + ': ' + self.app.speaker_list[key] for key in self.app.speaker_list.keys()],
+                        size=(20, 16), expand_x=True, enable_events=True, key='VOICES')]
         ]
         tabs = sg.TabGroup([[
             sg.Tab('Queue', queue_control),
@@ -78,10 +77,28 @@ class ttsGui():
         self.window['USERNAME'].bind("<Return>", "_Enter")
         self.window['MSG'].bind("<Return>", "_Enter")
 
+        multiline = self.window['QUEUE'].widget
+        multiline.tag_configure('fakesel', background='light grey', underline=1)
+
+        bindtags = list(multiline.bindtags())
+        bindtags.remove("Text")
+        multiline.bindtags(tuple(bindtags))
+
+        self.window['QUEUE'].bind('<Button-1>', ' Click')
+
+        def yscroll(event, widget):
+            if event.num == 5 or event.delta < 0:
+                widget.yview_scroll(1, "unit")
+            elif event.num == 4 or event.delta > 0:
+                widget.yview_scroll(-1, "unit")
+        multiline.bind('<MouseWheel>', lambda event, widget=multiline:yscroll(event, widget))
+
+        multiline.configure(spacing1=0, spacing2=0, spacing3=8)
+
         self.refresh_thread = threading.Thread(target=self.refresh_queue, daemon=True)
         self.refresh_thread.start()
 
-        #Run the window capturing events
+        # Run the window capturing events
         while True:
             event, values = self.window.read()
 
@@ -89,7 +106,7 @@ class ttsGui():
             if event in (None, sg.WINDOW_CLOSED, 'Quit', 'Exit'):
                 if self.listener != ():
                     asyncio.run(self.app.kill(self.listener))
-                break;
+                break
 
             # App operations
             elif event in ('Connect', 'USERNAME_Enter'):
@@ -111,12 +128,12 @@ class ttsGui():
                 if values['MSG'] != '':
                     data = {'bits_used': 1, 'user_name': 'hannah_gbs', 'chat_message': values['MSG']}
                     self.app.tts_queue.put(data)
-                    self.window['MSG'].update('');
+                    self.window['MSG'].update('')
             elif event == 'ADDVOICE':
                 if values['KEY'] != '':
                     try:
                         self.window['KEY'].update('')
-                        #self.window['VOICES'].update([key + ': ' + self.app.speaker_list[key] for key in self.app.speaker_list.keys()])
+                        # self.window['VOICES'].update([key + ': ' + self.app.speaker_list[key] for key in self.app.speaker_list.keys()])
                     except Exception as e:
                         sg.popup(f'Failed to set keyword')
                 else:
@@ -126,6 +143,18 @@ class ttsGui():
                 for voice in voices:
                     self.app.remove_model(voice.split(':')[0])
                 self.window['VOICES'].update([key + ': ' + self.app.speaker_list[key] for key in self.app.speaker_list.keys()])
+            elif event == 'QUEUE Click':
+                e = self.window['QUEUE'].user_bind_event
+                line, column = multiline.index(f"@{e.x},{e.y}").split(".")
+                multiline.tag_remove('fakesel', "1.0", 'end')
+                multiline.tag_add('fakesel', f'{line}.0', f'{line}.end')
+                multiline.tag_remove('sel', "1.0", 'end')
+                multiline.tag_add('sel', f'{line}.0', f'{line}.end')
+                ranges = multiline.tag_ranges('sel')
+                if ranges:
+                    print('SELECTED Text is %r' % multiline.get(*ranges))
+                else:
+                    print('NO Selected Text')
 
         self.window.close()
 
@@ -142,7 +171,7 @@ class ttsGui():
                     messages = [item['user_name'] + ': ' + item['chat_message'] for item in list(self.app.tts_queue.queue)]
                     if messages != self.current_queue_list:
                         self.current_queue_list = messages
-                        self.window['QUEUE'].update(self.current_queue_list)
+                        self.window['QUEUE'].update('\n'.join(messages))
 
                 time.sleep(0.5)
             except:
@@ -151,6 +180,7 @@ class ttsGui():
     def clear_queue(self):
         was_paused = self.app.pause_flag
         self.app.pause_flag = True
+        self.app.clear_flag = True
         while not self.app.tts_queue.empty():
             try:
                 self.app.tts_queue.get(block=False)

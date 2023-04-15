@@ -1,6 +1,6 @@
 from num2words import num2words
-from playsound import playsound
-from TTS.api import TTS
+from preferredsoundplayer import *
+from TTS.utils.synthesizer import Synthesizer
 from twitchAPI.helper import first
 from twitchAPI.oauth import UserAuthenticator
 from twitchAPI.pubsub import PubSub
@@ -9,7 +9,6 @@ from twitchAPI.types import AuthScope
 from uuid import UUID
 import configparser
 import emoji
-import inspect
 import json
 import os
 import queue
@@ -52,21 +51,30 @@ class ttsController:
                            "RIPCheer",
                            "Shamrock"]
 
+    VOICES = ["harry", "barry", "brian"]
+
     def __init__(self):
         self.config = configparser.ConfigParser()
         self.config.read('config.ini')
 
-        self.output_path = os.path.join(self.config['DEFAULT']['OutputDirectory'], "output.wav")
+        self.output_path = os.path.join(self.config['DEFAULT']['OutputDirectory'], "output2.wav")
         self.brian_output_path = os.path.join(self.config['DEFAULT']['OutputDirectory'], "output.mp3")
         self.credentials_path = os.path.join(self.config['DEFAULT']['OutputDirectory'], "credentials.json")
         self.target_channel = self.config['DEFAULT']['TargetChannel']
         self.app_id = self.config['DEFAULT']['TwitchAppId']
         self.app_secret = self.config['DEFAULT']['TwitchAppSecret']
-        
-        self.tts_client = TTS(TTS.list_models()[0])
+
+        self.model_path = self.config.get('Default', 'ModelPath', fallback='./model/test_model')
+
+        self.tts_synth = Synthesizer(os.path.join(self.model_path, 'model_file.pth'),
+                                     os.path.join(self.model_path, 'config.json'),
+                                     os.path.join(self.model_path, 'speakers.json'),
+                                     os.path.join(self.model_path, 'language_ids.json'))
         self.tts_queue = queue.Queue()
-        
+
+        self.currently_playing = None
         self.pause_flag = False
+        self.clear_flag = False
         self.speaker_list = eval(self.config['DEFAULT']['Speakers'])
 
     def worker(self):
@@ -77,21 +85,36 @@ class ttsController:
 
             time.sleep(2)
             try:
-                item = self.tts_queue.get(timeout=1)
-            except queue.Empty:
+                # hack to keep current TTS at top of visible list until it's played
+                item = list(self.tts_queue.queue)[0]
+            except IndexError:
                 continue
 
             message = remove_cheermotes(item['chat_message'])
-            if item['bits_used'] == 2:
+
+            message_list = self.split_message(message)
+            self.do_speaking(message_list)
+
+    def do_speaking(self, message_list):
+        for message_object in message_list:
+            voice = message_object['voice']
+            message = message_object['message']
+            if voice != 'brian':
                 message = convert_numbers(message)
                 message = replace_emoji(message)
                 # do Coqui voice (just default voice atm)
-                self.tts_client[voice].tts_to_file(text=message, file_path=self.output_path)
+                self.tts_synth.save_wav(self.tts_synth.tts(message, speaker_name=voice, language_name='en'),
+                                        self.output_path)
 
-                playsound(self.output_path)
+                self.currently_playing = soundplay(self.output_path)
+                while getIsPlaying(self.currently_playing):
+                    if self.clear_flag:
+                        stopsound(self.currently_playing)
+                    sleep(0.5)
+                stopsound(self.currently_playing)
                 os.remove(self.output_path)
-                self.tts_queue.task_done()
             else:
+                print("doing brian")
                 # Do brian
                 url = 'https://api.streamelements.com/kappa/v2/speech?voice=Brian&text=' + urllib.parse.quote_plus(
                     message)
@@ -99,9 +122,44 @@ class ttsController:
                 with open(self.brian_output_path, 'wb') as f:
                     f.write(data.content)
                 f.close()
-                playsound(self.brian_output_path)
+                self.currently_playing = soundplay(self.brian_output_path)
+                while getIsPlaying(self.currently_playing):
+                    if self.clear_flag:
+                        stopsound(self.currently_playing)
+                    sleep(0.5)
+                stopsound(self.currently_playing)
                 os.remove(self.brian_output_path)
-                self.tts_queue.task_done()
+
+            # hack to keep current TTS at top of visible list until it's played
+        self.tts_queue.get()
+        self.tts_queue.task_done()
+
+    def split_message(self, message):
+        sub_messages = message.split('#')
+        while '' in sub_messages:
+            sub_messages.remove('')
+        message_list = []
+        for sub_message in sub_messages:
+            if sub_message.split()[0].lower() in self.VOICES:
+                voice = sub_message.split()[0].lower()
+                if voice == 'barry':
+                    voice = 'harry'
+                sub_message_object = {
+                    'voice': voice,
+                    'message': sub_message.removeprefix(sub_message.split()[0]).strip()
+                }
+                message_list.append(sub_message_object)
+            else:
+                if len(message_list) != 0:
+                    message_list[sub_messages.index(sub_message)-1]['message'] += ' #' + sub_message
+                else:
+                    sub_message_object = {
+                        'voice': 'brian',
+                        'message': sub_message
+                    }
+                    message_list.append(sub_message_object)
+
+        return message_list
 
     async def update_stored_creds(self, token, refresh):
         with open(self.credentials_path, 'w') as f:
