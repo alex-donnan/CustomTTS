@@ -41,7 +41,7 @@ class ttsGui():
                 sg.Button('Pause', key='PAUSE'),
                 sg.Button('Clear', key='CLEAR')
             ],
-            [sg.Listbox([], size=(20, 18), expand_x=True, enable_events=True, key='QUEUE')]
+            [sg.Multiline('', size=(80, 16), expand_x=True, disabled=True, enable_events=True, key='QUEUE', do_not_clear=False)]
         ]
         model_control=[
             [
@@ -77,6 +77,24 @@ class ttsGui():
         self.window = sg.Window('Custom TTS', layout, icon='assets/sir.ico', finalize=True)
         self.window['USERNAME'].bind("<Return>", "_Enter")
         self.window['MSG'].bind("<Return>", "_Enter")
+
+        multiline = self.window['QUEUE'].widget
+        multiline.tag_configure('fakesel', background='light grey', underline=1)
+
+        bindtags = list(multiline.bindtags())
+        bindtags.remove("Text")
+        multiline.bindtags(tuple(bindtags))
+
+        self.window['QUEUE'].bind('<Button-1>', ' Click')
+
+        def yscroll(event, widget):
+            if event.num == 5 or event.delta < 0:
+                widget.yview_scroll(1, "unit")
+            elif event.num == 4 or event.delta > 0:
+                widget.yview_scroll(-1, "unit")
+        multiline.bind('<MouseWheel>', lambda event, widget=multiline:yscroll(event, widget))
+
+        multiline.configure(spacing1=4, spacing2=0, spacing3=4)
 
         self.refresh_thread = threading.Thread(target=self.refresh_queue, daemon=True)
         self.refresh_thread.start()
@@ -126,6 +144,18 @@ class ttsGui():
                 for voice in voices:
                     self.app.remove_model(voice.split(':')[0])
                 self.window['VOICES'].update([key + ': ' + self.app.speaker_list[key] for key in self.app.speaker_list.keys()])
+            elif event == 'QUEUE Click':
+                e = self.window['QUEUE'].user_bind_event
+                line, column = multiline.index(f"@{e.x},{e.y}").split(".")
+                multiline.tag_remove('fakesel', "1.0", 'end')
+                multiline.tag_add('fakesel', f'{line}.0', f'{line}.end')
+                multiline.tag_remove('sel', "1.0", 'end')
+                multiline.tag_add('sel', f'{line}.0', f'{line}.end')
+                ranges = multiline.tag_ranges('sel')
+                if ranges:
+                    print('SELECTED Text is %r' % multiline.get(*ranges))
+                else:
+                    print('NO Selected Text')
 
         self.window.close()
 
@@ -142,7 +172,7 @@ class ttsGui():
                     messages = [item['user_name'] + ': ' + item['chat_message'] for item in list(self.app.tts_queue.queue)]
                     if messages != self.current_queue_list:
                         self.current_queue_list = messages
-                        self.window['QUEUE'].update(self.current_queue_list)
+                        self.window['QUEUE'].update('\n'.join(messages))
 
                 time.sleep(0.5)
             except:
