@@ -141,8 +141,11 @@ class ttsController:
         message_list = []
         for sub_message in sub_messages:
             if sub_message.split()[0].lower() in self.VOICES:
+                voice = sub_message.split()[0].lower()
+                if voice == 'barry':
+                    voice = 'harry'
                 sub_message_object = {
-                    'voice': sub_message.split()[0].lower(),
+                    'voice': voice,
                     'message': sub_message.removeprefix(sub_message.split()[0]).strip()
                 }
                 message_list.append(sub_message_object)
