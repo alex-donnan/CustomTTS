@@ -51,8 +51,6 @@ class ttsController:
                            "RIPCheer",
                            "Shamrock"]
 
-    VOICES = ["harry", "barry", "brian"]
-
     def __init__(self):
         self.config = configparser.ConfigParser()
         self.config.read('config.ini')
@@ -64,12 +62,25 @@ class ttsController:
         self.app_id = self.config['DEFAULT']['TwitchAppId']
         self.app_secret = self.config['DEFAULT']['TwitchAppSecret']
 
-        self.model_path = self.config.get('Default', 'ModelPath', fallback='./model/test_model')
+        self.model_dir = self.config.get('DEFAULT', 'ModelDir', fallback='./models/')
+        root, dirs, files = os.walk(self.model_dir).__next__()
 
-        self.tts_synth = Synthesizer(os.path.join(self.model_path, 'model_file.pth'),
-                                     os.path.join(self.model_path, 'config.json'),
-                                     os.path.join(self.model_path, 'speakers.json'),
-                                     os.path.join(self.model_path, 'language_ids.json'))
+        self.tts_synth = {}
+
+        for model_name in dirs:
+            model_path = os.path.join(self.model_dir, model_name, 'model_file.pth')
+            config_path = os.path.join(self.model_dir, model_name, 'config.json')
+            speakers_path = os.path.join(self.model_dir, model_name, 'speakers.json')
+            languages_path = os.path.join(self.model_dir, model_name, 'language_ids.json')
+            if not (os.path.exists(model_path) and os.path.exists(
+                    os.path.join(config_path) and os.path.exists(speakers_path) and os.path.exists(languages_path))):
+                print('Missing file for model in directory: ' + model_name)
+                continue
+            new_synth = Synthesizer(model_path, config_path,
+                                    speakers_path,
+                                    languages_path)
+            self.tts_synth[model_name] = new_synth
+
         self.tts_queue = queue.Queue()
 
         self.currently_playing = None
@@ -99,12 +110,15 @@ class ttsController:
         for message_object in message_list:
             voice = message_object['voice']
             message = message_object['message']
-            if voice != 'brian':
+            if voice != 'brian' and voice in self.speaker_list.keys() \
+                    and self.speaker_list[voice]['model'] in self.tts_synth.keys():
                 message = convert_numbers(message)
                 message = replace_emoji(message)
                 # do Coqui voice (just default voice atm)
-                self.tts_synth.save_wav(self.tts_synth.tts(message, speaker_name=voice, language_name='en'),
-                                        self.output_path)
+                self.tts_synth[self.speaker_list[voice]['model']] \
+                    .save_wav(self.tts_synth[self.speaker_list[voice]['model']]
+                              .tts(message, speaker_name=self.speaker_list[voice]['speaker'], language_name='en'),
+                              self.output_path)
 
                 self.currently_playing = soundplay(self.output_path)
                 while getIsPlaying(self.currently_playing):
@@ -114,7 +128,6 @@ class ttsController:
                 stopsound(self.currently_playing)
                 os.remove(self.output_path)
             else:
-                print("doing brian")
                 # Do brian
                 url = 'https://api.streamelements.com/kappa/v2/speech?voice=Brian&text=' + urllib.parse.quote_plus(
                     message)
@@ -140,10 +153,8 @@ class ttsController:
             sub_messages.remove('')
         message_list = []
         for sub_message in sub_messages:
-            if sub_message.split()[0].lower() in self.VOICES:
+            if sub_message.split()[0].lower() in self.speaker_list.keys():
                 voice = sub_message.split()[0].lower()
-                if voice == 'barry':
-                    voice = 'harry'
                 sub_message_object = {
                     'voice': voice,
                     'message': sub_message.removeprefix(sub_message.split()[0]).strip()
@@ -151,7 +162,7 @@ class ttsController:
                 message_list.append(sub_message_object)
             else:
                 if len(message_list) != 0:
-                    message_list[sub_messages.index(sub_message)-1]['message'] += ' #' + sub_message
+                    message_list[sub_messages.index(sub_message) - 1]['message'] += ' #' + sub_message
                 else:
                     sub_message_object = {
                         'voice': 'brian',
