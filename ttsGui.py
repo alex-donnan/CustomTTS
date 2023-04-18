@@ -14,7 +14,6 @@ class ttsGui():
         self.app = app
         self.current_queue_list = []
         self.listener = ()
-        self.models = []
         self.status = 'assets/red.png'
         self.themes = sg.theme_list()
 
@@ -22,7 +21,7 @@ class ttsGui():
         sg.theme('DefaultNoMoreNagging')
 
         # PSGUI
-        connection=[
+        connection = [
             sg.Text('Status:'),
             sg.Image(self.status, size=(16, 16), key='STATUS'),
             sg.Push(),
@@ -32,16 +31,23 @@ class ttsGui():
         ]
 
         # Messages or Modules as tabs
-        queue_control=[
+        queue_control = [
             [
                 sg.Text('Queued Messages:'),
                 sg.Push(),
                 sg.Button('Pause', key='PAUSE'),
                 sg.Button('Clear', key='CLEAR')
             ],
-            [sg.Multiline('', size=(80, 16), expand_x=True, disabled=True, enable_events=True, key='QUEUE', do_not_clear=False)]
+            [sg.Multiline('', size=(80, 16), expand_x=True, disabled=True, enable_events=True, key='QUEUE',
+                          do_not_clear=False)]
         ]
-        model_control=[
+
+        speaker_list = []
+        for key in self.app.tts_synth.keys():
+            for speaker in self.app.tts_synth[key].tts_model.speaker_manager.speaker_names:
+                speaker_list.append(key + ": " + speaker)
+
+        model_control = [
             [
                 sg.Text('Voice Pairings'),
                 sg.Push(),
@@ -49,10 +55,11 @@ class ttsGui():
                 sg.Button('Remove', key='REMOVEVOICE')
             ],
             [
-                sg.Input('keyword', size=(15,1), key='KEY'),
-                sg.Combo([], expand_x=True, readonly=True, key='VOICE')
+                sg.Input('keyword', size=(15, 1), key='KEY'),
+                sg.Combo(speaker_list, expand_x=True, readonly=True, key='VOICE')
             ],
-            [sg.Listbox([key + ': ' + self.app.speaker_list[key] for key in self.app.speaker_list.keys()],
+            [sg.Listbox([key + ': ' + self.app.speaker_list[key]['model'] + ' - ' +
+                         self.app.speaker_list[key]['speaker'] for key in self.app.speaker_list.keys()],
                         size=(20, 16), expand_x=True, enable_events=True, key='VOICES')]
         ]
         tabs = sg.TabGroup([[
@@ -60,14 +67,14 @@ class ttsGui():
             sg.Tab('Speakers', model_control)
         ]], expand_x=True)
 
-        message=[
+        message = [
             sg.Push(),
             sg.Text('New Message:'),
             sg.Input(key='MSG'),
             sg.Button('Add Msg', key='ADDMSG')
         ]
 
-        layout=[
+        layout = [
             [connection],
             [tabs],
             [message]
@@ -91,7 +98,8 @@ class ttsGui():
                 widget.yview_scroll(1, "unit")
             elif event.num == 4 or event.delta > 0:
                 widget.yview_scroll(-1, "unit")
-        multiline.bind('<MouseWheel>', lambda event, widget=multiline:yscroll(event, widget))
+
+        multiline.bind('<MouseWheel>', lambda event, widget=multiline: yscroll(event, widget))
 
         multiline.configure(spacing1=0, spacing2=0, spacing3=8)
 
@@ -131,18 +139,31 @@ class ttsGui():
                     self.window['MSG'].update('')
             elif event == 'ADDVOICE':
                 if values['KEY'] != '':
-                    try:
-                        self.window['KEY'].update('')
-                        # self.window['VOICES'].update([key + ': ' + self.app.speaker_list[key] for key in self.app.speaker_list.keys()])
-                    except Exception as e:
-                        sg.popup(f'Failed to set keyword')
+                    self.window['KEY'].update('')
+                    voice_object = {
+                        'model': values['VOICE'].split(': ')[0],
+                        'speaker': values['VOICE'].split(': ')[1]
+                    }
+                    self.app.speaker_list[values['KEY']] = voice_object
+
+                    self.window['VOICES'].update([key + ': ' + self.app.speaker_list[key]['model'] + ' - ' +
+                                                  self.app.speaker_list[key]['speaker'] for key in
+                                                  self.app.speaker_list.keys()])
+                    self.app.config.set('DEFAULT', 'Speakers', str(self.app.speaker_list))
+                    with open('config.ini', 'w') as configfile:
+                        self.app.config.write(configfile)
                 else:
                     sg.popup(f'You\'re missing either a keyword or voice selection.')
             elif event == 'REMOVEVOICE':
                 voices = self.window['VOICES'].get()
                 for voice in voices:
-                    self.app.remove_model(voice.split(':')[0])
-                self.window['VOICES'].update([key + ': ' + self.app.speaker_list[key] for key in self.app.speaker_list.keys()])
+                    self.app.speaker_list.pop(voice.split(':')[0])
+                self.window['VOICES'].update([key + ': ' + self.app.speaker_list[key]['model'] + ' - ' +
+                                              self.app.speaker_list[key]['speaker'] for key in
+                                              self.app.speaker_list.keys()])
+                self.app.config.set('DEFAULT', 'Speakers', str(self.app.speaker_list))
+                with open('config.ini', 'w') as configfile:
+                    self.app.config.write(configfile)
             elif event == 'QUEUE Click':
                 e = self.window['QUEUE'].user_bind_event
                 line, column = multiline.index(f"@{e.x},{e.y}").split(".")
@@ -168,7 +189,8 @@ class ttsGui():
 
                 # Collect messages
                 with self.app.tts_queue.mutex:
-                    messages = [item['user_name'] + ': ' + item['chat_message'] for item in list(self.app.tts_queue.queue)]
+                    messages = [item['user_name'] + ': ' + item['chat_message'] for item in
+                                list(self.app.tts_queue.queue)]
                     if messages != self.current_queue_list:
                         self.current_queue_list = messages
                         self.window['QUEUE'].update('\n'.join(messages))
