@@ -1,3 +1,4 @@
+import glob
 from num2words import num2words
 from preferredsoundplayer import *
 from TTS.utils.synthesizer import Synthesizer
@@ -55,7 +56,7 @@ class ttsController:
         self.config = configparser.ConfigParser()
         self.config.read('config.ini')
 
-        self.output_path = os.path.join(self.config['DEFAULT']['OutputDirectory'], "output2.wav")
+        self.output_path = os.path.join(self.config['DEFAULT']['OutputDirectory'], "output.wav")
         self.brian_output_path = os.path.join(self.config['DEFAULT']['OutputDirectory'], "output.mp3")
         self.credentials_path = os.path.join(self.config['DEFAULT']['OutputDirectory'], "credentials.json")
         self.target_channel = self.config['DEFAULT']['TargetChannel']
@@ -68,17 +69,17 @@ class ttsController:
         self.tts_synth = {}
 
         for model_name in dirs:
-            model_path = os.path.join(self.model_dir, model_name, 'model_file.pth')
+            model_path = os.path.join(self.model_dir, model_name,
+                                      glob.glob('*.pth', root_dir=os.path.join(self.model_dir, model_name))[0])
             config_path = os.path.join(self.model_dir, model_name, 'config.json')
             speakers_path = os.path.join(self.model_dir, model_name, 'speakers.json')
             languages_path = os.path.join(self.model_dir, model_name, 'language_ids.json')
-            if not (os.path.exists(model_path) and os.path.exists(
-                    os.path.join(config_path) and os.path.exists(speakers_path) and os.path.exists(languages_path))):
+            if not (os.path.exists(model_path) and os.path.exists(config_path)):
                 print('Missing file for model in directory: ' + model_name)
                 continue
             new_synth = Synthesizer(model_path, config_path,
-                                    speakers_path,
-                                    languages_path)
+                                    speakers_path if os.path.exists(speakers_path) else None,
+                                    languages_path if os.path.exists(languages_path) else None)
             self.tts_synth[model_name] = new_synth
 
         self.tts_queue = queue.Queue()
