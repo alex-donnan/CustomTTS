@@ -95,7 +95,7 @@ class ttsGui():
         self.window['MSG'].bind("<Return>", "_Enter")
 
         multiline = self.window['QUEUE'].widget
-        multiline.tag_configure('fakesel', background='light grey', underline=1)
+        # multiline.tag_configure('fakesel', background='light grey', underline=1)
         multiline.tag_configure('indent', lmargin2=50)
 
         bindtags = list(multiline.bindtags())
@@ -144,7 +144,7 @@ class ttsGui():
             elif event == 'CLEAR':
                 self.clear_queue()
             elif event in ('ADDMSG', 'MSG_Enter'):
-                dev_names = ['hannah_gbs', 'wil_co', 'iskall85', 'hannahboingus']
+                dev_names = ['hannah_gbs']
                 if values['MSG'] != '':
                     data = {'bits_used': 1, 'user_name': random.choice(dev_names), 'chat_message': values['MSG']}
                     self.app.tts_queue.put(data)
@@ -180,18 +180,18 @@ class ttsGui():
                 self.app.config.set('DEFAULT', 'Speakers', str(self.app.speaker_list))
                 with open('config.ini', 'w') as configfile:
                     self.app.config.write(configfile)
-            elif event == 'QUEUE Click':
-                e = self.window['QUEUE'].user_bind_event
-                line, column = multiline.index(f"@{e.x},{e.y}").split(".")
-                multiline.tag_remove('fakesel', "1.0", 'end')
-                multiline.tag_add('fakesel', f'{line}.0', f'{line}.end')
-                multiline.tag_remove('sel', "1.0", 'end')
-                multiline.tag_add('sel', f'{line}.0', f'{line}.end')
-                ranges = multiline.tag_ranges('sel')
-                if ranges:
-                    print('SELECTED Text is %r' % multiline.get(*ranges))
-                else:
-                    print('NO Selected Text')
+            # elif event == 'QUEUE Click':
+            #     e = self.window['QUEUE'].user_bind_event
+            #     line, column = multiline.index(f"@{e.x},{e.y}").split(".")
+            #     multiline.tag_remove('fakesel', "1.0", 'end')
+            #     multiline.tag_add('fakesel', f'{line}.0', f'{line}.end')
+            #     multiline.tag_remove('sel', "1.0", 'end')
+            #     multiline.tag_add('sel', f'{line}.0', f'{line}.end')
+            #     ranges = multiline.tag_ranges('sel')
+            #     if ranges:
+            #         print('SELECTED Text is %r' % multiline.get(*ranges))
+            #     else:
+            #         print('NO Selected Text')
 
         self.window.close()
 

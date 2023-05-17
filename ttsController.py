@@ -72,7 +72,7 @@ class ttsController:
             model_path = os.path.join(self.model_dir, model_name,
                                       glob.glob('*.pth', root_dir=os.path.join(self.model_dir, model_name))[0])
             config_path = os.path.join(self.model_dir, model_name, 'config.json')
-            speakers_path = os.path.join(self.model_dir, model_name, 'speakers.json')
+            speakers_path = os.path.join(self.model_dir, model_name, 'speakers.pth')
             languages_path = os.path.join(self.model_dir, model_name, 'language_ids.json')
             if not (os.path.exists(model_path) and os.path.exists(config_path)):
                 print('Missing file for model in directory: ' + model_name)
@@ -93,7 +93,13 @@ class ttsController:
         while True:
             # if Cheer in queue, process it
             if self.pause_flag:
+                sleep(0.5)
                 continue
+
+            if self.clear_flag:
+                if self.tts_queue.empty:
+                    self.clear_flag = False
+                    continue
 
             time.sleep(2)
             try:
@@ -108,7 +114,10 @@ class ttsController:
             self.do_speaking(message_list)
 
     def do_speaking(self, message_list):
+        soundplay("assets/cheer.wav", block=True)
+        sleep(0.25)
         for message_object in message_list:
+            if self.clear_flag: continue
             voice = message_object['voice']
             message = message_object['message']
             if voice != 'brian' and voice in self.speaker_list.keys() \
@@ -145,7 +154,10 @@ class ttsController:
                 os.remove(self.brian_output_path)
 
             # hack to keep current TTS at top of visible list until it's played
-        self.tts_queue.get()
+        try:
+            self.tts_queue.get(timeout=1)
+        except queue.Empty:
+            return
         self.tts_queue.task_done()
 
     def split_message(self, message):
@@ -154,7 +166,7 @@ class ttsController:
             sub_messages.remove('')
         message_list = []
         for sub_message in sub_messages:
-            if sub_message.split()[0].lower() in self.speaker_list.keys():
+            if sub_message.split()[0].lower() in self.speaker_list.keys() or sub_message.split()[0].lower() == "brian":
                 voice = sub_message.split()[0].lower()
                 sub_message_object = {
                     'voice': voice,
