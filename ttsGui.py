@@ -201,8 +201,9 @@ class ttsGui():
         while True:
             # Update connection status
             try:
-                self.status = 'assets/green.png' if self.app.connected else 'assets/red.png'
-                self.window['STATUS'].update(self.status)               
+                if self.app.wsapp:
+                    self.status = 'assets/green.png' if self.app.connected else 'assets/red.png'
+                    self.window['STATUS'].update(self.status)
 
                 # Collect messages
                 with self.app.tts_queue.mutex:

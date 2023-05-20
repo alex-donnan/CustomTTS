@@ -54,7 +54,7 @@ class ttsController:
                            "Shamrock"]
     URI = 'https://api.twitch.tv/helix'
     WS_ENDPOINT = 'wss://eventsub.wss.twitch.tv/ws' if not DEVMODE else 'ws://127.0.0.1:8080/ws'
-    SUBS_ENDPOINT = '/eventsub/subscriptions' if not DEVMODE else 'http://localhost:8080/eventsub/subscriptions'
+    SUBS_ENDPOINT = 'https://api.twitch.tv/helix/eventsub/subscriptions' if not DEVMODE else 'http://localhost:8080/eventsub/subscriptions'
     SUBSCRIPTIONS = [
         'channel.subscription.message',
         'channel.subscription.gift',
@@ -130,7 +130,7 @@ class ttsController:
                         'session_id': session_id
                     }
                 }
-                response = requests.post(ttsController.URI + ttsController.SUBS_ENDPOINT, json=sub_data, headers=self.headers)
+                response = requests.post(ttsController.SUBS_ENDPOINT, json=sub_data, headers=self.headers)
                 print(f'Subscription response: {response.text}')
         elif msg['metadata']['message_type'] == 'session_keepalive':
             keepalive = msg['metadata']['message_timestamp']
@@ -139,11 +139,12 @@ class ttsController:
             if msg['payload']['subscription']['type'] == 'channel.subscription.gift':
                 message = {
                     'user_name': event['user_name'],
-                    'chat_message': 'Gift Sub Message',
+                    'chat_message': f"{event['total']} Gifted Sub{'' if event['total'] == 1 else 's'}",
                     'no_message': True
                 }
                 # add to tts_queue here
                 print(message)
+                self.tts_queue.put(message)
             elif msg['payload']['subscription']['type'] == 'channel.subscription.message':
                 message = {
                     'user_name': event['user_name'],
@@ -151,13 +152,14 @@ class ttsController:
                 }
                 # add to tts_queue here
                 print(message)
+                self.tts_queue.put(message)
             elif msg['payload']['subscription']['type'] == 'channel.cheer':
                 message = {
                     'user_name': event['user_name'],
                     'chat_message': event['message']
                 }
                 # add to tts_queue here
-                self.tts_queue.put(message['chat_message'])
+                self.tts_queue.put(message)
 
     def on_error(self, ws, msg):
         print(f'An error has occurred: {msg}')
@@ -184,6 +186,15 @@ class ttsController:
                 # hack to keep current TTS at top of visible list until it's played
                 item = list(self.tts_queue.queue)[0]
             except IndexError:
+                continue
+
+            if "no_message" in item and item["no_message"]:
+                soundplay("assets/cheer.wav", block=True)
+                try:
+                    self.tts_queue.get(timeout=1)
+                except queue.Empty:
+                    continue
+                self.tts_queue.task_done()
                 continue
 
             message = remove_cheermotes(item['chat_message'])
