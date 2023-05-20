@@ -1,0 +1,2 @@
+datas = [('C:/Users/alexd/AppData/Local/Programs/Python/Python310/Lib/site-packages/unidic_lite/*', 'unidic_lite'),
+		('C:/Users/alexd/AppData/Local/Programs/Python/Python310/Lib/site-packages/unidic_lite/dicdir/*', 'unidic_lite/dicdir')]

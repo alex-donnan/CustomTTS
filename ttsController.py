@@ -4,7 +4,6 @@ from preferredsoundplayer import *
 from TTS.utils.synthesizer import Synthesizer
 from twitchAPI.helper import first
 from twitchAPI.oauth import UserAuthenticator
-from twitchAPI.pubsub import PubSub
 from twitchAPI.twitch import Twitch
 from twitchAPI.types import AuthScope
 from uuid import UUID
@@ -17,7 +16,9 @@ import re
 import requests
 import time
 import urllib.parse
+import websocket
 
+DEVMODE = False
 
 def replace_emoji(message):
     message = re.sub(':[\\w_]+:', lambda m: re.sub('[:_]', ' ', m.group()), emoji.demojize(message))
@@ -43,7 +44,7 @@ def remove_cheermotes(raw_message):
 
 
 class ttsController:
-    USER_SCOPE = [AuthScope.BITS_READ, AuthScope.CHANNEL_MODERATE]
+    USER_SCOPE = [AuthScope.BITS_READ, AuthScope.CHANNEL_MODERATE, AuthScope.CHANNEL_READ_SUBSCRIPTIONS]
     PREFIXES = prefixes = ["Cheer", "hryCheer", "BibleThump", "cheerwhal", "Corgo", "uni", "ShowLove", "Party",
                            "SeemsGood",
                            "Pride", "Kappa", "FrankerZ", "HeyGuys", "DansGame", "EleGiggle", "TriHard", "Kreygasm",
@@ -51,6 +52,14 @@ class ttsController:
                            "SwiftRage", "NotLikeThis", "FailFish", "VoHiYo", "PJSalt", "MrDestructoid", "bday",
                            "RIPCheer",
                            "Shamrock"]
+    URI = 'https://api.twitch.tv/helix'
+    WS_ENDPOINT = 'wss://eventsub.wss.twitch.tv/ws' if not DEVMODE else 'ws://127.0.0.1:8080/ws'
+    SUBS_ENDPOINT = '/eventsub/subscriptions' if not DEVMODE else 'http://localhost:8080/eventsub/subscriptions'
+    SUBSCRIPTIONS = [
+        'channel.subscription.message',
+        'channel.subscription.gift',
+        'channel.cheer'
+    ]
 
     def __init__(self):
         self.config = configparser.ConfigParser()
@@ -59,9 +68,13 @@ class ttsController:
         self.output_path = os.path.join(self.config['DEFAULT']['OutputDirectory'], "output.wav")
         self.brian_output_path = os.path.join(self.config['DEFAULT']['OutputDirectory'], "output.mp3")
         self.credentials_path = os.path.join(self.config['DEFAULT']['OutputDirectory'], "credentials.json")
+        
         self.target_channel = self.config['DEFAULT']['TargetChannel']
         self.app_id = self.config['DEFAULT']['TwitchAppId']
         self.app_secret = self.config['DEFAULT']['TwitchAppSecret']
+        self.headers = {}
+        self.broadcaster = ''
+        self.wsapp = None
 
         self.model_dir = self.config.get('DEFAULT', 'ModelDir', fallback='./models/')
         root, dirs, files = os.walk(self.model_dir).__next__()
@@ -77,9 +90,10 @@ class ttsController:
             if not (os.path.exists(model_path) and os.path.exists(config_path)):
                 print('Missing file for model in directory: ' + model_name)
                 continue
-            new_synth = Synthesizer(model_path, config_path,
-                                    speakers_path if os.path.exists(speakers_path) else None,
-                                    languages_path if os.path.exists(languages_path) else None)
+            new_synth = Synthesizer(tts_checkpoint=model_path,
+                                    tts_config_path=config_path,
+                                    tts_speakers_file=speakers_path if os.path.exists(speakers_path) else None,
+                                    tts_languages_file=languages_path if os.path.exists(languages_path) else None)
             self.tts_synth[model_name] = new_synth
 
         self.tts_queue = queue.Queue()
@@ -88,7 +102,71 @@ class ttsController:
         self.pause_flag = False
         self.clear_flag = False
         self.speaker_list = eval(self.config['DEFAULT']['Speakers'])
+        self.connected = False
 
+    # WebSocket event methods
+    def on_open(self, ws):
+        # update the color
+        self.connected = True
+        print('Connected to Twitch')
+
+    def on_message(self, ws, msg):
+        self.connected = True
+        msg = json.loads(msg)
+        if msg['metadata']['message_type'] == 'session_welcome':
+            # session variables
+            session_id = msg['payload']['session']['id']
+
+            # TODO: get broadcaster ID from username with endpoint
+            for sub_type in ttsController.SUBSCRIPTIONS:
+                sub_data = {
+                    'type': sub_type,
+                    'version': '1',
+                    'condition': {
+                        'broadcaster_user_id': self.broadcaster['data'][0]['id']
+                   },
+                    'transport': {
+                        'method': 'websocket',
+                        'session_id': session_id
+                    }
+                }
+                response = requests.post(ttsController.URI + ttsController.SUBS_ENDPOINT, json=sub_data, headers=self.headers)
+                print(f'Subscription response: {response.text}')
+        elif msg['metadata']['message_type'] == 'session_keepalive':
+            keepalive = msg['metadata']['message_timestamp']
+        elif msg['metadata']['message_type'] == 'notification':
+            event = (msg['payload'])['event']
+            if msg['payload']['subscription']['type'] == 'channel.subscription.gift':
+                message = {
+                    'user_name': event['user_name'],
+                    'chat_message': 'Gift Sub Message',
+                    'no_message': True
+                }
+                # add to tts_queue here
+                print(message)
+            elif msg['payload']['subscription']['type'] == 'channel.subscription.message':
+                message = {
+                    'user_name': event['user_name'],
+                    'chat_message': event['message']['text']
+                }
+                # add to tts_queue here
+                print(message)
+            elif msg['payload']['subscription']['type'] == 'channel.cheer':
+                message = {
+                    'user_name': event['user_name'],
+                    'chat_message': event['message']
+                }
+                # add to tts_queue here
+                self.tts_queue.put(message['chat_message'])
+
+    def on_error(self, ws, msg):
+        print(f'An error has occurred: {msg}')
+
+    def on_close(self, ws, close_status_code, msg):
+        self.connected = False
+        print('Closed')
+
+    # Worker
     def worker(self):
         while True:
             # if Cheer in queue, process it
@@ -182,28 +260,27 @@ class ttsController:
                         'message': sub_message
                     }
                     message_list.append(sub_message_object)
-
         return message_list
 
     async def update_stored_creds(self, token, refresh):
         with open(self.credentials_path, 'w') as f:
             json.dump({'token': token, 'refresh': refresh}, f)
 
-    async def on_cheer(self, uuid: UUID, data: dict) -> None:
-        self.tts_queue.put(data)
-
     async def run(self):
+        # Just use pre-built twitch auth
         twitch = await Twitch(self.app_id, self.app_secret)
         twitch.user_auth_refresh_callback = self.update_stored_creds
         needs_auth = True
+
+        # Use or generate auth
         if os.path.exists(self.credentials_path):
             with open(self.credentials_path) as f:
                 creds = json.load(f)
             try:
                 await twitch.set_user_authentication(creds['token'], ttsController.USER_SCOPE, creds['refresh'])
                 user = await first(twitch.get_users(logins=[self.target_channel]))
-            except:
-                print('stored token invalid, refreshing...')
+            except Exception as ex:
+                print(f'Stored token invalid : {ex}')
             else:
                 needs_auth = False
 
@@ -215,17 +292,24 @@ class ttsController:
             await twitch.set_user_authentication(token, ttsController.USER_SCOPE, refresh_token)
             user = await first(twitch.get_users(logins=[self.target_channel]))
 
-        pubsub = PubSub(twitch)
-        pubsub.start()
-        uuid = await pubsub.listen_bits(user.id, ttsController.on_cheer)
+        # Get the broadcaster (for ID)
+        with open(self.credentials_path) as f:
+            creds = json.load(f)
 
-        return twitch, pubsub, uuid
+            self.headers = {
+                'Authorization': f'Bearer {creds["token"]}',
+                'Client-Id': self.app_id,
+                'Content-Type': 'application/json'
+            }
 
-    async def kill(self, listener: tuple):
-        twitch, pubsub, uuid = listener
-        await pubsub.unlisten(uuid)
-        pubsub.stop()
-        await twitch.close()
+            broad_request = requests.get(f'{ttsController.URI}/users?user_login={self.target_channel}', headers=self.headers)
+            self.broadcaster = broad_request.json()
+
+        # Create the socket for threading
+        print('Creating websocket')
+        websocket.setdefaulttimeout(10)
+        self.wsapp = websocket.WebSocketApp(ttsController.WS_ENDPOINT,
+            on_open=self.on_open, on_message=self.on_message, on_error=self.on_error, on_close=self.on_close)
 
     # Setters
     def set_channel(self, channel: str):
