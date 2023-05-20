@@ -1,0 +1,1 @@
+datas = [('C:/Users/alexd/AppData/Local/Programs/Python/Python310/Lib/site-packages/TTS/*', 'TTS')]

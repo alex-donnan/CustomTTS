@@ -1,0 +1,117 @@
+{
+ "version": "auto-py-to-exe-configuration_v1",
+ "pyinstallerOptions": [
+  {
+   "optionDest": "noconfirm",
+   "value": true
+  },
+  {
+   "optionDest": "filenames",
+   "value": "C:/Users/alexd/OneDrive/Documents/CustomTTS/ttsGui.py"
+  },
+  {
+   "optionDest": "onefile",
+   "value": false
+  },
+  {
+   "optionDest": "console",
+   "value": false
+  },
+  {
+   "optionDest": "icon_file",
+   "value": "C:/Users/alexd/OneDrive/Documents/CustomTTS/assets/sir.ico"
+  },
+  {
+   "optionDest": "ascii",
+   "value": false
+  },
+  {
+   "optionDest": "clean_build",
+   "value": false
+  },
+  {
+   "optionDest": "strip",
+   "value": false
+  },
+  {
+   "optionDest": "noupx",
+   "value": false
+  },
+  {
+   "optionDest": "disable_windowed_traceback",
+   "value": false
+  },
+  {
+   "optionDest": "embed_manifest",
+   "value": true
+  },
+  {
+   "optionDest": "uac_admin",
+   "value": false
+  },
+  {
+   "optionDest": "uac_uiaccess",
+   "value": false
+  },
+  {
+   "optionDest": "win_private_assemblies",
+   "value": false
+  },
+  {
+   "optionDest": "win_no_prefer_redirects",
+   "value": false
+  },
+  {
+   "optionDest": "bootloader_ignore_signals",
+   "value": false
+  },
+  {
+   "optionDest": "argv_emulation",
+   "value": false
+  },
+  {
+   "optionDest": "datas",
+   "value": "C:/Users/alexd/OneDrive/Documents/CustomTTS/assets;assets/"
+  },
+  {
+   "optionDest": "datas",
+   "value": "C:/Users/alexd/OneDrive/Documents/CustomTTS/models;models/"
+  },
+  {
+   "optionDest": "hookspath",
+   "value": "C:/Users/alexd/OneDrive/Documents/CustomTTS/hooks"
+  },
+  {
+   "optionDest": "hiddenimports",
+   "value": "decorator"
+  },
+  {
+   "optionDest": "hiddenimports",
+   "value": "audioread"
+  },
+  {
+   "optionDest": "hiddenimports",
+   "value": "soxr"
+  },
+  {
+   "optionDest": "hiddenimports",
+   "value": "TTS.tts.configs.vits_config"
+  },
+  {
+   "optionDest": "hiddenimports",
+   "value": "TTS.tts.layers.generic"
+  },
+  {
+   "optionDest": "hiddenimports",
+   "value": "pycrfsuite._dumpparser"
+  },
+  {
+   "optionDest": "hiddenimports",
+   "value": "pycrfsuite._logparser"
+  }
+ ],
+ "nonPyinstallerOptions": {
+  "increaseRecursionLimit": false,
+  "manualArguments": ""
+ }
+}

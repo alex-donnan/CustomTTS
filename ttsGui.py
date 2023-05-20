@@ -9,15 +9,13 @@ import time
 import threading
 import ttsController as TTS
 
-dev_mode = True
-
+DEVMODE = False
 
 class ttsGui():
     def __init__(self, app: TTS):
         # TTS Controller
         self.app = app
         self.current_queue_list = []
-        self.listener = ()
         self.status = 'assets/red.png'
         self.themes = sg.theme_list()
 
@@ -123,19 +121,23 @@ class ttsGui():
 
             # Standard operations
             if event in (None, sg.WINDOW_CLOSED, 'Quit', 'Exit'):
-                if self.listener != ():
-                    asyncio.run(self.app.kill(self.listener))
+                print('Closing app.')
                 break
 
             # App operations
             elif event in ('Connect', 'USERNAME_Enter'):
                 if values['USERNAME'] != '':
                     try:
+                        #Start workers and websocket
                         self.app.set_channel(values['USERNAME'])
                         threading.Thread(target=self.app.worker, daemon=True).start()
-                        self.listener = asyncio.run(self.app.run())
-                    except:
-                        sg.popup(f'Failed to connect to user. Please try again.', title='Connection Failed')
+                        asyncio.run(self.app.run())
+                        threading.Thread(target=self.app.wsapp.run_forever, daemon=True).start()
+
+                        #Switch to disconnect?
+
+                    except Exception as ex:
+                        sg.popup(f'Failed to connect to user. Please try again: {ex}', title='Connection Failed')
                 else:
                     sg.popup(f'You must enter a Twitch Username', title='Missing Data')
             elif event == 'PAUSE':
@@ -144,9 +146,8 @@ class ttsGui():
             elif event == 'CLEAR':
                 self.clear_queue()
             elif event in ('ADDMSG', 'MSG_Enter'):
-                dev_names = ['hannah_gbs']
                 if values['MSG'] != '':
-                    data = {'bits_used': 1, 'user_name': random.choice(dev_names), 'chat_message': values['MSG']}
+                    data = {'bits_used': 1, 'user_name': values['USERNAME'], 'chat_message': values['MSG']}
                     self.app.tts_queue.put(data)
                     self.window['MSG'].update('')
             elif event == 'ADDVOICE':
@@ -195,13 +196,13 @@ class ttsGui():
 
         self.window.close()
 
+
     def refresh_queue(self, multiline=None):
         while True:
             # Update connection status
             try:
-                if self.listener:
-                    self.status = 'assets/green.png' if self.listener[1].is_connected() else 'assets/red.png'
-                    self.window['STATUS'].update(self.status)
+                self.status = 'assets/green.png' if self.app.connected else 'assets/red.png'
+                self.window['STATUS'].update(self.status)               
 
                 # Collect messages
                 with self.app.tts_queue.mutex:

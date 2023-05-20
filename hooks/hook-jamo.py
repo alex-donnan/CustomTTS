@@ -1,0 +1,2 @@
+datas = [('C:/Users/alexd/AppData/Local/Programs/Python/Python310/Lib/site-packages/jamo/*', 'jamo'),
+		('C:/Users/alexd/AppData/Local/Programs/Python/Python310/Lib/site-packages/jamo/data/*', 'jamo/data')]
