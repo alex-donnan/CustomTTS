@@ -16,6 +16,7 @@ import re
 import requests
 import string
 import time
+import threading
 import urllib.parse
 import websocket
 import random
@@ -112,9 +113,9 @@ class ttsController:
             fname = self.generate_fname()
         return fname
 
-    def generate_wav(self, message_list):
-        for message_object in message_list:
-            output_file = os.path.join(self.output_path, self.generate_fname() + '.wav')
+    def generate_wav(self, msg):
+        for message_object in msg['message']:
+            output_file = os.path.join(self.output_path, self.generate_fname())
 
             if self.clear_flag: continue
             voice = message_object['voice']
@@ -132,28 +133,28 @@ class ttsController:
                     self.tts_synth[self.speaker_list[voice]['model']] \
                         .save_wav(self.tts_synth[self.speaker_list[voice]['model']]
                                   .tts(message, speaker_name=self.speaker_list[voice]['speaker'], language_name='en'),
-                                  output_file)
+                                  output_file + '.wav')
                 else:
                     # Do brian
                     url = 'https://api.streamelements.com/kappa/v2/speech?voice=Brian&text=' + urllib.parse.quote_plus(
                         message)
                     data = requests.get(url)
-                    print(data)
-                    with open(output_file, 'wb') as f:
+                    with open(output_file + '.mp3', 'wb') as f:
                         f.write(data.content)
                     f.close()
 
                 # Put the file in the play queue
                 message_object['filename'] = output_file
 
-        self.tts_queue.put(message_list)
+        print(msg)
+        self.tts_queue.put(msg)
 
     def play_wav(self, message_list):
         soundplay("assets/cheer.wav", block=True)
         sleep(0.25)
 
         for message_object in message_list:
-            file = message_object['filename']
+            file = message_object['filename'] + ('.wav' if message_object['voice'] != 'brian' else '.mp3')
             self.currently_playing = soundplay(file)
             while getIsPlaying(self.currently_playing):
                 if self.clear_flag:
@@ -178,7 +179,11 @@ class ttsController:
         print('Connected to Twitch')
 
     def on_message(self, ws, msg):
-        self.connected = True
+        def run(self, message):
+            message['message'] = remove_cheermotes(message['chat_message'])
+            message['message'] = self.split_message(message['message'])
+            self.generate_wav(message)
+        
         msg = json.loads(msg)
         if msg['metadata']['message_type'] == 'session_welcome':
             # session variables
@@ -218,9 +223,7 @@ class ttsController:
                     'chat_message': event['message']
                 }
 
-            message = remove_cheermotes(message['chat_message'])
-            message_list = self.split_message(message)
-            self.generate_wav(message_list)
+            threading.Thread(target=run, args=[self, message], daemon=True).start()
 
     def on_error(self, ws, msg):
         print(f'An error has occurred: {msg}')
@@ -256,7 +259,8 @@ class ttsController:
                 self.tts_queue.task_done()
                 continue
 
-            self.play_wav(item)
+            print(item)
+            self.play_wav(item['message'])
 
     # Utilites
     def split_message(self, message):
@@ -336,11 +340,5 @@ class ttsController:
     def set_channel(self, channel: str):
         self.target_channel = channel
         self.config.set('DEFAULT', 'TargetChannel', channel)
-        with open('config.ini', 'w') as configfile:
-            self.config.write(configfile)
-
-    def set_output(self, output: str):
-        self.output_path = os.path.join(output, 'output.wav')
-        self.config.set('DEFAULT', 'OutputDirectory', output)
         with open('config.ini', 'w') as configfile:
             self.config.write(configfile)
