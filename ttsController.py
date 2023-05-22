@@ -14,9 +14,11 @@ import os
 import queue
 import re
 import requests
+import string
 import time
 import urllib.parse
 import websocket
+import random
 
 DEVMODE = False
 
@@ -65,8 +67,7 @@ class ttsController:
         self.config = configparser.ConfigParser()
         self.config.read('config.ini')
 
-        self.output_path = os.path.join(self.config['DEFAULT']['OutputDirectory'], "output.wav")
-        self.brian_output_path = os.path.join(self.config['DEFAULT']['OutputDirectory'], "output.mp3")
+        self.output_path = self.config['DEFAULT']['OutputDirectory']
         self.credentials_path = os.path.join(self.config['DEFAULT']['OutputDirectory'], "credentials.json")
         
         self.target_channel = self.config['DEFAULT']['TargetChannel']
@@ -104,6 +105,72 @@ class ttsController:
         self.speaker_list = eval(self.config['DEFAULT']['Speakers'])
         self.connected = False
 
+    def generate_fname(self):
+        fname = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+        # In the highly unlikely event it exists already, recurse
+        if os.path.exists(os.path.join(self.output_path, fname + '.wav')):
+            fname = self.generate_fname()
+        return fname
+
+    def generate_wav(self, message_list):
+        for message_object in message_list:
+            output_file = os.path.join(self.output_path, self.generate_fname() + '.wav')
+
+            if self.clear_flag: continue
+            voice = message_object['voice']
+            message = message_object['message']
+            print(f'New file for {voice}: {output_file}')
+
+            # Select voice generator
+            if message.strip() != '':
+                if voice != 'brian' and voice in self.speaker_list.keys() \
+                        and self.speaker_list[voice]['model'] in self.tts_synth.keys():
+                    message = convert_numbers(message)
+                    message = replace_emoji(message)
+
+                    # generate
+                    self.tts_synth[self.speaker_list[voice]['model']] \
+                        .save_wav(self.tts_synth[self.speaker_list[voice]['model']]
+                                  .tts(message, speaker_name=self.speaker_list[voice]['speaker'], language_name='en'),
+                                  output_file)
+                else:
+                    # Do brian
+                    url = 'https://api.streamelements.com/kappa/v2/speech?voice=Brian&text=' + urllib.parse.quote_plus(
+                        message)
+                    data = requests.get(url)
+                    print(data)
+                    with open(output_file, 'wb') as f:
+                        f.write(data.content)
+                    f.close()
+
+                # Put the file in the play queue
+                message_object['filename'] = output_file
+
+        self.tts_queue.put(message_list)
+
+    def play_wav(self, message_list):
+        soundplay("assets/cheer.wav", block=True)
+        sleep(0.25)
+
+        for message_object in message_list:
+            file = message_object['filename']
+            self.currently_playing = soundplay(file)
+            while getIsPlaying(self.currently_playing):
+                if self.clear_flag:
+                    stopsound(self.currently_playing)
+                sleep(0.5)
+            stopsound(self.currently_playing)
+
+            os.remove(file)
+
+        # Hack way to let GUI know to decrease the visible messages
+        self.currently_playing = None
+        try:
+            self.tts_queue.get(timeout=1)
+        except queue.Empty:
+            return
+        self.tts_queue.task_done()
+
     # WebSocket event methods
     def on_open(self, ws):
         # update the color
@@ -117,7 +184,6 @@ class ttsController:
             # session variables
             session_id = msg['payload']['session']['id']
 
-            # TODO: get broadcaster ID from username with endpoint
             for sub_type in ttsController.SUBSCRIPTIONS:
                 sub_data = {
                     'type': sub_type,
@@ -131,34 +197,30 @@ class ttsController:
                     }
                 }
                 response = requests.post(ttsController.SUBS_ENDPOINT, json=sub_data, headers=self.headers)
-                print(f'Subscription response: {response.text}')
-        elif msg['metadata']['message_type'] == 'session_keepalive':
-            keepalive = msg['metadata']['message_timestamp']
+                print(f'Subscription response: {response.json()}')
         elif msg['metadata']['message_type'] == 'notification':
             event = (msg['payload'])['event']
+            message = {}
             if msg['payload']['subscription']['type'] == 'channel.subscription.gift':
                 message = {
                     'user_name': event['user_name'],
                     'chat_message': f"{event['total']} Gifted Sub{'' if event['total'] == 1 else 's'}",
                     'no_message': True
                 }
-                # add to tts_queue here
-                self.tts_queue.put(message)
             elif msg['payload']['subscription']['type'] == 'channel.subscription.message':
                 message = {
                     'user_name': event['user_name'],
                     'chat_message': event['message']['text']
                 }
-                # add to tts_queue here
-                print(message)
-                self.tts_queue.put(message)
             elif msg['payload']['subscription']['type'] == 'channel.cheer':
                 message = {
                     'user_name': event['user_name'],
                     'chat_message': event['message']
                 }
-                # add to tts_queue here
-                self.tts_queue.put(message)
+
+            message = remove_cheermotes(message['chat_message'])
+            message_list = self.split_message(message)
+            self.generate_wav(message_list)
 
     def on_error(self, ws, msg):
         print(f'An error has occurred: {msg}')
@@ -170,19 +232,17 @@ class ttsController:
     # Worker
     def worker(self):
         while True:
-            # if Cheer in queue, process it
-            if self.pause_flag:
-                sleep(0.5)
-                continue
-
             if self.clear_flag:
                 if self.tts_queue.empty:
                     self.clear_flag = False
                     continue
 
+            if self.pause_flag:
+                sleep(0.5)
+                continue
+
             time.sleep(2)
             try:
-                # hack to keep current TTS at top of visible list until it's played
                 item = list(self.tts_queue.queue)[0]
             except IndexError:
                 continue
@@ -196,58 +256,9 @@ class ttsController:
                 self.tts_queue.task_done()
                 continue
 
-            message = remove_cheermotes(item['chat_message'])
+            self.play_wav(item)
 
-            message_list = self.split_message(message)
-            self.do_speaking(message_list)
-
-    def do_speaking(self, message_list):
-        soundplay("assets/cheer.wav", block=True)
-        sleep(0.25)
-        for message_object in message_list:
-            if self.clear_flag: continue
-            voice = message_object['voice']
-            message = message_object['message']
-            if voice != 'brian' and voice in self.speaker_list.keys() \
-                    and self.speaker_list[voice]['model'] in self.tts_synth.keys():
-                message = convert_numbers(message)
-                message = replace_emoji(message)
-                # do Coqui voice (just default voice atm)
-                self.tts_synth[self.speaker_list[voice]['model']] \
-                    .save_wav(self.tts_synth[self.speaker_list[voice]['model']]
-                              .tts(message, speaker_name=self.speaker_list[voice]['speaker'], language_name='en'),
-                              self.output_path)
-
-                self.currently_playing = soundplay(self.output_path)
-                while getIsPlaying(self.currently_playing):
-                    if self.clear_flag:
-                        stopsound(self.currently_playing)
-                    sleep(0.5)
-                stopsound(self.currently_playing)
-                os.remove(self.output_path)
-            else:
-                # Do brian
-                url = 'https://api.streamelements.com/kappa/v2/speech?voice=Brian&text=' + urllib.parse.quote_plus(
-                    message)
-                data = requests.get(url)
-                with open(self.brian_output_path, 'wb') as f:
-                    f.write(data.content)
-                f.close()
-                self.currently_playing = soundplay(self.brian_output_path)
-                while getIsPlaying(self.currently_playing):
-                    if self.clear_flag:
-                        stopsound(self.currently_playing)
-                    sleep(0.5)
-                stopsound(self.currently_playing)
-                os.remove(self.brian_output_path)
-
-            # hack to keep current TTS at top of visible list until it's played
-        try:
-            self.tts_queue.get(timeout=1)
-        except queue.Empty:
-            return
-        self.tts_queue.task_done()
-
+    # Utilites
     def split_message(self, message):
         sub_messages = message.split('#')
         while '' in sub_messages:
@@ -275,7 +286,7 @@ class ttsController:
     async def update_stored_creds(self, token, refresh):
         with open(self.credentials_path, 'w') as f:
             json.dump({'token': token, 'refresh': refresh}, f)
-
+    
     async def run(self):
         # Just use pre-built twitch auth
         twitch = await Twitch(self.app_id, self.app_secret)

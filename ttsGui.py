@@ -3,6 +3,7 @@ import random
 from tkinter import font
 from tkinter.font import Font
 
+import json
 import os
 import PySimpleGUI as sg
 import queue
@@ -51,7 +52,7 @@ class ttsGui():
         for key in self.app.tts_synth.keys():
             if self.app.tts_synth[key].tts_model.speaker_manager is not None:
                 for speaker in self.app.tts_synth[key].tts_model.speaker_manager.speaker_names:
-                    speaker_list.append(key + ": " + speaker)
+                    speaker_list.append(key + ': ' + speaker)
             else:
                 speaker_list.append(key)
 
@@ -92,24 +93,24 @@ class ttsGui():
         ]
 
         self.window = sg.Window('Custom TTS', layout, icon='assets/sir.ico', finalize=True)
-        self.window['USERNAME'].bind("<Return>", "_Enter")
-        self.window['MSG'].bind("<Return>", "_Enter")
+        self.window['USERNAME'].bind('<Return>', '_Enter')
+        self.window['MSG'].bind('<Return>', '_Enter')
 
         multiline = self.window['QUEUE'].widget
         # multiline.tag_configure('fakesel', background='light grey', underline=1)
         multiline.tag_configure('indent', lmargin2=50)
 
         bindtags = list(multiline.bindtags())
-        bindtags.remove("Text")
+        bindtags.remove('Text')
         multiline.bindtags(tuple(bindtags))
 
         self.window['QUEUE'].bind('<Button-1>', ' Click')
 
         def yscroll(event, widget):
             if event.num == 5 or event.delta < 0:
-                widget.yview_scroll(1, "unit")
+                widget.yview_scroll(1, 'unit')
             elif event.num == 4 or event.delta > 0:
-                widget.yview_scroll(-1, "unit")
+                widget.yview_scroll(-1, 'unit')
 
         multiline.bind('<MouseWheel>', lambda event, widget=multiline: yscroll(event, widget))
 
@@ -150,8 +151,23 @@ class ttsGui():
                 self.clear_queue()
             elif event in ('ADDMSG', 'MSG_Enter'):
                 if values['MSG'] != '':
-                    data = {'bits_used': 1, 'user_name': values['USERNAME'], 'chat_message': values['MSG']}
-                    self.app.tts_queue.put(data)
+                    # TODO - Data needs to go through the on_message(ws, msg) input
+                    data = json.dumps({
+                        'metadata': {
+                            'message_type': 'notification'
+                        },
+                        'payload': {
+                            'subscription': {
+                                'type': 'channel.cheer',
+                                'cost': 1
+                            },
+                            'event': {
+                                'user_name': values['USERNAME'],
+                                'message': values['MSG']
+                            }
+                        }
+                    }, indent=4)
+                    self.app.on_message(self.app.wsapp, data)
                     self.window['MSG'].update('')
             elif event == 'ADDVOICE':
                 if values['KEY'] != '':
@@ -186,10 +202,10 @@ class ttsGui():
                     self.app.config.write(configfile)
             # elif event == 'QUEUE Click':
             #     e = self.window['QUEUE'].user_bind_event
-            #     line, column = multiline.index(f"@{e.x},{e.y}").split(".")
-            #     multiline.tag_remove('fakesel', "1.0", 'end')
+            #     line, column = multiline.index(f'@{e.x},{e.y}').split('.')
+            #     multiline.tag_remove('fakesel', '1.0', 'end')
             #     multiline.tag_add('fakesel', f'{line}.0', f'{line}.end')
-            #     multiline.tag_remove('sel', "1.0", 'end')
+            #     multiline.tag_remove('sel', '1.0', 'end')
             #     multiline.tag_add('sel', f'{line}.0', f'{line}.end')
             #     ranges = multiline.tag_ranges('sel')
             #     if ranges:
@@ -199,7 +215,6 @@ class ttsGui():
 
         self.window.close()
 
-
     def refresh_queue(self, multiline=None):
         while True:
             # Update connection status
@@ -208,26 +223,30 @@ class ttsGui():
                     self.status = 'assets/green.png' if self.app.connected else 'assets/red.png'
                     self.window['STATUS'].update(self.status)
 
+                    # TODO FIX ME
+                    #
                     # Collect messages
-                    with self.app.tts_queue.mutex:
-                        items = []
-                        messages = []
-                        for item in list(self.app.tts_queue.queue):
-                            messages.append(item['user_name'] + ': ' + item['chat_message'])
-                            items.append(item)
+                    # with self.app.tts_queue.mutex:
+                    #     items = []
+                    #     messages = []
+                    #     for item in list(self.app.tts_queue.queue):
+                    #         messages.append(item['user_name'] + ': ' + item['chat_message'])
+                    #         items.append(item)
 
-                        if messages != self.current_queue_list:
-                            self.current_queue_list = messages
-                            self.window['QUEUE'].update('\n'.join(messages))
-                            for tag in multiline.tag_names():
-                                if tag != "fakesel" and tag != "indent":
-                                    multiline.tag_remove(tag, '1.0', 'end')
-                            for i in range(len(items)):
-                                multiline.tag_config(item['user_name'], font=('Helvetica', 10, 'bold'))
-                                multiline.tag_add(item['user_name'], f'{i+1}.0',
-                                                  f'{i+1}.{len(items[i]["user_name"])}')
+                    #     if messages != self.current_queue_list:
+                    #         self.current_queue_list = messages
+                    #         self.window['QUEUE'].update('\n'.join(messages))
+                    #         for tag in multiline.tag_names():
+                    #             if tag != 'fakesel' and tag != 'indent':
+                    #                 multiline.tag_remove(tag, '1.0', 'end')
+                    #         for i in range(len(items)):
+                    #             multiline.tag_config(item['user_name'], font=('Helvetica', 10, 'bold'))
+                    #             multiline.tag_add(item['user_name'], f'{i+1}.0',
+                    #                               f'{i+1}.{len(items[i]['user_name'])}')
 
-                            multiline.tag_add('indent', '1.0', 'end')
+                    #         multiline.tag_add('indent', '1.0', 'end')
+
+                    # time.sleep(0.5)
 
                     # Disconnected? Try to connect
                     if not self.app.connected:
@@ -238,6 +257,9 @@ class ttsGui():
                         asyncio.run(self.app.run())
                         self.socket = threading.Thread(target=self.app.wsapp.run_forever, daemon=True)
                         self.socket.start()
+
+                        #safety
+                        time.sleep(2)
 
                 time.sleep(0.5)
             except Exception as e:
@@ -254,7 +276,6 @@ class ttsGui():
                 break
             self.app.tts_queue.task_done()
         self.app.pause_flag = was_paused
-
 
 if __name__ == '__main__':
     controller = TTS.ttsController()
