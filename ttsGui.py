@@ -3,6 +3,7 @@ import random
 from tkinter import font
 from tkinter.font import Font
 
+import os
 import PySimpleGUI as sg
 import queue
 import time
@@ -18,6 +19,8 @@ class ttsGui():
         self.current_queue_list = []
         self.status = 'assets/red.png'
         self.themes = sg.theme_list()
+        self.worker = threading.Thread(target=self.app.worker, daemon=True)
+        self.socket = None
 
         # Theming
         sg.theme('DefaultNoMoreNagging')
@@ -130,12 +133,12 @@ class ttsGui():
                     try:
                         #Start workers and websocket
                         self.app.set_channel(values['USERNAME'])
-                        threading.Thread(target=self.app.worker, daemon=True).start()
-                        asyncio.run(self.app.run())
-                        threading.Thread(target=self.app.wsapp.run_forever, daemon=True).start()
-
-                        #Switch to disconnect?
-
+                        
+                        self.worker.start()
+                        if self.app.wsapp == None:
+                            asyncio.run(self.app.run())
+                            self.socket = threading.Thread(target=self.app.wsapp.run_forever, daemon=True)
+                        self.socket.start()
                     except Exception as ex:
                         sg.popup(f'Failed to connect to user. Please try again: {ex}', title='Connection Failed')
                 else:
@@ -205,26 +208,36 @@ class ttsGui():
                     self.status = 'assets/green.png' if self.app.connected else 'assets/red.png'
                     self.window['STATUS'].update(self.status)
 
-                # Collect messages
-                with self.app.tts_queue.mutex:
-                    items = []
-                    messages = []
-                    for item in list(self.app.tts_queue.queue):
-                        messages.append(item['user_name'] + ': ' + item['chat_message'])
-                        items.append(item)
+                    # Collect messages
+                    with self.app.tts_queue.mutex:
+                        items = []
+                        messages = []
+                        for item in list(self.app.tts_queue.queue):
+                            messages.append(item['user_name'] + ': ' + item['chat_message'])
+                            items.append(item)
 
-                    if messages != self.current_queue_list:
-                        self.current_queue_list = messages
-                        self.window['QUEUE'].update('\n'.join(messages))
-                        for tag in multiline.tag_names():
-                            if tag != "fakesel" and tag != "indent":
-                                multiline.tag_remove(tag, '1.0', 'end')
-                        for i in range(len(items)):
-                            multiline.tag_config(item['user_name'], font=('Helvetica', 10, 'bold'))
-                            multiline.tag_add(item['user_name'], f'{i+1}.0',
-                                              f'{i+1}.{len(items[i]["user_name"])}')
+                        if messages != self.current_queue_list:
+                            self.current_queue_list = messages
+                            self.window['QUEUE'].update('\n'.join(messages))
+                            for tag in multiline.tag_names():
+                                if tag != "fakesel" and tag != "indent":
+                                    multiline.tag_remove(tag, '1.0', 'end')
+                            for i in range(len(items)):
+                                multiline.tag_config(item['user_name'], font=('Helvetica', 10, 'bold'))
+                                multiline.tag_add(item['user_name'], f'{i+1}.0',
+                                                  f'{i+1}.{len(items[i]["user_name"])}')
 
-                        multiline.tag_add('indent', '1.0', 'end')
+                            multiline.tag_add('indent', '1.0', 'end')
+
+                    # Disconnected? Try to connect
+                    if not self.app.connected:
+                        self.socket.start()
+                else:
+                    if os.path.exists(self.app.credentials_path):
+                        self.worker.start()
+                        asyncio.run(self.app.run())
+                        self.socket = threading.Thread(target=self.app.wsapp.run_forever, daemon=True)
+                        self.socket.start()
 
                 time.sleep(0.5)
             except Exception as e:

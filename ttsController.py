@@ -143,7 +143,6 @@ class ttsController:
                     'no_message': True
                 }
                 # add to tts_queue here
-                print(message)
                 self.tts_queue.put(message)
             elif msg['payload']['subscription']['type'] == 'channel.subscription.message':
                 message = {
