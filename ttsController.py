@@ -303,11 +303,21 @@ class ttsController:
         with open(self.credentials_path, 'w') as f:
             json.dump({'token': token, 'refresh': refresh}, f)
     
+    async def auth(self):
+        # Just use pre-built twitch auth
+        twitch = await Twitch(self.app_id, self.app_secret)
+        twitch.user_auth_refresh_callback = self.update_stored_creds
+
+        auth = UserAuthenticator(twitch, ttsController.USER_SCOPE)
+        token, refresh_token = await auth.authenticate()
+
+        with open(self.credentials_path, 'w') as f:
+            json.dump({'token': token, 'refresh': refresh_token}, f)
+
     async def run(self):
         # Just use pre-built twitch auth
         twitch = await Twitch(self.app_id, self.app_secret)
         twitch.user_auth_refresh_callback = self.update_stored_creds
-        needs_auth = True
 
         # Use or generate auth
         if os.path.exists(self.credentials_path):
@@ -318,16 +328,6 @@ class ttsController:
                 user = await first(twitch.get_users(logins=[self.target_channel]))
             except Exception as ex:
                 print(f'Stored token invalid : {ex}')
-            else:
-                needs_auth = False
-
-        if needs_auth:
-            auth = UserAuthenticator(twitch, ttsController.USER_SCOPE)
-            token, refresh_token = await auth.authenticate()
-            with open(self.credentials_path, 'w') as f:
-                json.dump({'token': token, 'refresh': refresh_token}, f)
-            await twitch.set_user_authentication(token, ttsController.USER_SCOPE, refresh_token)
-            user = await first(twitch.get_users(logins=[self.target_channel]))
 
         # Get the broadcaster (for ID)
         with open(self.credentials_path) as f:
@@ -343,10 +343,11 @@ class ttsController:
             self.broadcaster = broad_request.json()
 
         # Create the socket for threading
-        print('Creating websocket')
-        websocket.setdefaulttimeout(10)
-        self.wsapp = websocket.WebSocketApp(ttsController.WS_ENDPOINT,
-            on_open=self.on_open, on_message=self.on_message, on_error=self.on_error, on_close=self.on_close)
+        if not self.wsapp:
+            print('Creating websocket')
+            websocket.setdefaulttimeout(10)
+            self.wsapp = websocket.WebSocketApp(ttsController.WS_ENDPOINT,
+                on_open=self.on_open, on_message=self.on_message, on_error=self.on_error, on_close=self.on_close)
 
     # Setters
     def set_channel(self, channel: str):

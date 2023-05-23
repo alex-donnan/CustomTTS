@@ -134,10 +134,7 @@ class ttsGui():
                     try:
                         #Start workers and websocket
                         self.app.set_channel(values['USERNAME'])
-                        if self.app.wsapp == None:
-                            asyncio.run(self.app.run())
-                            self.socket = threading.Thread(target=self.app.wsapp.run_forever, daemon=True)
-                        self.socket.start()
+                        asyncio.run(self.app.auth())
                     except Exception as ex:
                         sg.popup(f'Failed to connect to user. Please try again: {ex}', title='Connection Failed')
                 else:
