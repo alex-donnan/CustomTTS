@@ -128,16 +128,14 @@ class ttsController:
                     continue
 
             # Play any sounds
-            if self.pause_flag:
-                sleep(0.5)
-                continue
-
-            try:
-                self.tts_thread = self.tts_queue.get(timeout=1)
-                self.tts_thread()
+            if not self.pause_flag:
+                try:
+                    self.tts_thread = self.tts_queue.get(timeout=1)
+                    self.tts_thread()
+                except (queue.Empty, IndexError):
+                    continue
+            else:
                 sleep(1)
-            except (queue.Empty, IndexError):
-                continue
 
     # Audio generation or playback
     def generate_fname(self):
@@ -198,8 +196,8 @@ class ttsController:
                 sleep(0.5)
             stopsound(self.currently_playing)
 
-            if os.path.exists(file):
-                os.remove(file)
+            try: os.remove(file)
+            except: continue
 
         # Hack way to let GUI know to decrease the visible messages?
         self.currently_playing = None
