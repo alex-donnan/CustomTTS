@@ -221,28 +221,25 @@ class ttsGui():
                     self.status = 'assets/green.png' if self.app.connected else 'assets/red.png'
                     self.window['STATUS'].update(self.status)
 
-                    # TODO FIX ME
-                    #
                     # Collect messages
-                    # with self.app.tts_queue.mutex:
-                    #     items = []
-                    #     messages = []
-                    #     for item in list(self.app.tts_queue.queue):
-                    #         messages.append(item['user_name'] + ': ' + item['chat_message'])
-                    #         items.append(item)
+                    items = []
+                    messages = []
+                    for item in self.app.tts_text:
+                        messages.append(item['user_name'] + ': ' + item['chat_message'])
+                        items.append(item)
 
-                    #     if messages != self.current_queue_list:
-                    #         self.current_queue_list = messages
-                    #         self.window['QUEUE'].update('\n'.join(messages))
-                    #         for tag in multiline.tag_names():
-                    #             if tag != 'fakesel' and tag != 'indent':
-                    #                 multiline.tag_remove(tag, '1.0', 'end')
-                    #         for i in range(len(items)):
-                    #             multiline.tag_config(item['user_name'], font=('Helvetica', 10, 'bold'))
-                    #             multiline.tag_add(item['user_name'], f'{i+1}.0',
-                    #                               f'{i+1}.{len(items[i]["user_name"])}')
+                    if messages != self.current_queue_list:
+                        self.current_queue_list = messages
+                        self.window['QUEUE'].update('\n'.join(messages))
+                        for tag in multiline.tag_names():
+                            if tag != 'fakesel' and tag != 'indent':
+                                multiline.tag_remove(tag, '1.0', 'end')
+                        for i in range(len(items)):
+                            multiline.tag_config(item['user_name'], font=('Helvetica', 10, 'bold'))
+                            multiline.tag_add(item['user_name'], f'{i+1}.0',
+                                              f'{i+1}.{len(items[i]["user_name"])}')
 
-                    #         multiline.tag_add('indent', '1.0', 'end')
+                        multiline.tag_add('indent', '1.0', 'end')
 
                     time.sleep(1)
 
@@ -267,10 +264,6 @@ class ttsGui():
         was_paused = self.app.pause_flag
         self.app.pause_flag = True
         self.app.clear_flag = True
-        for file in os.listdir(self.app.output_path):
-            if file.endswith('.wav') or file.endswith('.mp3'):
-                print(f'Removing {file}')
-                os.remove(os.path.join(self.app.output_path, file))
             
         while not self.app.gen_queue.empty():
             try:
@@ -285,6 +278,13 @@ class ttsGui():
                 self.app.tts_queue.task_done()
             except queue.Empty:
                 break
+
+        for file in os.listdir(self.app.output_path):
+            if file.endswith('.wav') or file.endswith('.mp3'):
+                print(f'Removing {file}')
+                os.remove(os.path.join(self.app.output_path, file))
+
+        self.app.tts_text = []
         self.app.pause_flag = was_paused
 
 if __name__ == '__main__':

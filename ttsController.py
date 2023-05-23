@@ -100,6 +100,7 @@ class ttsController:
 
         self.gen_queue = queue.Queue()
         self.tts_queue = queue.Queue()
+        self.tts_text = []
 
         self.gen_thread = None
         self.tts_thread = None 
@@ -113,11 +114,6 @@ class ttsController:
     # Worker
     def gen_worker(self):
         while True:
-            if self.clear_flag:
-                if self.tts_queue.empty() and self.gen_queue.empty():
-                    self.clear_flag = False
-                    continue
-
             try:
                 self.gen_thread = self.gen_queue.get(timeout=1)
                 self.gen_thread()
@@ -126,16 +122,22 @@ class ttsController:
 
     def tts_worker(self):
         while True:
-            # Play any sounds
-            if not self.pause_flag:
-                try:
-                    self.tts_thread = self.tts_queue.get(timeout=1)
-                    self.tts_thread()
-                except (queue.Empty, IndexError):
+            if self.clear_flag:
+                if self.tts_queue.empty() and self.gen_queue.empty():
+                    self.clear_flag = False
                     continue
+
+            # Play any sounds
+            if self.pause_flag:
+                sleep(0.5)
                 continue
 
-            sleep(1)
+            try:
+                self.tts_thread = self.tts_queue.get(timeout=1)
+                self.tts_thread()
+                sleep(1)
+            except (queue.Empty, IndexError):
+                continue
 
     # Audio generation or playback
     def generate_fname(self):
@@ -196,12 +198,16 @@ class ttsController:
                 sleep(0.5)
             stopsound(self.currently_playing)
 
-            os.remove(file)
+            if os.path.exists(file):
+                os.remove(file)
 
         # Hack way to let GUI know to decrease the visible messages?
         self.currently_playing = None
         self.tts_thread = None
         self.tts_queue.task_done()
+
+        # Remove from out text
+        self.tts_text = self.tts_text[1:]
         return
 
     # WebSocket event methods
@@ -258,6 +264,9 @@ class ttsController:
 
             message['message'] = remove_cheermotes(message['chat_message'])
             message['message'] = self.split_message(message['message'])
+
+            # Append to out text
+            self.tts_text.append(message)
             self.gen_queue.put(lambda: self.generate_wav(message))
 
     def on_error(self, ws, msg):
