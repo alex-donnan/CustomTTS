@@ -198,18 +198,6 @@ class ttsGui():
                 self.app.config.set('DEFAULT', 'Speakers', str(self.app.speaker_list))
                 with open('config.ini', 'w') as configfile:
                     self.app.config.write(configfile)
-            # elif event == 'QUEUE Click':
-            #     e = self.window['QUEUE'].user_bind_event
-            #     line, column = multiline.index(f'@{e.x},{e.y}').split('.')
-            #     multiline.tag_remove('fakesel', '1.0', 'end')
-            #     multiline.tag_add('fakesel', f'{line}.0', f'{line}.end')
-            #     multiline.tag_remove('sel', '1.0', 'end')
-            #     multiline.tag_add('sel', f'{line}.0', f'{line}.end')
-            #     ranges = multiline.tag_ranges('sel')
-            #     if ranges:
-            #         print('SELECTED Text is %r' % multiline.get(*ranges))
-            #     else:
-            #         print('NO Selected Text')
 
         self.window.close()
 
@@ -281,11 +269,8 @@ class ttsGui():
 
         for file in os.listdir(self.app.output_path):
             if file.endswith('.wav') or file.endswith('.mp3'):
-                try:
-                    print(f'Removing {file}')
-                    os.remove(os.path.join(self.app.output_path, file))
-                except PermissionError:
-                    continue
+                try: os.remove(os.path.join(self.app.output_path, file))
+                except: continue
 
         self.app.tts_text = []
         self.app.pause_flag = was_paused
