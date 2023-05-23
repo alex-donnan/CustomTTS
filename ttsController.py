@@ -289,11 +289,11 @@ class ttsController:
         voice = None
         for sub_message in sub_messages:
             # Check for sounds to remove, then re-check speakers
-            if sub_message.split()[0] in self.sound_list.keys():
+            if sub_message.split()[0].lower() in self.sound_list.keys():
                 sound = sub_message.split()[0]
                 sub_message = sub_message.replace(sound, (voice if voice else 'brian'))
                 sub_message_object = {
-                    'voice': sound,
+                    'voice': sound.lower(),
                     'message': '-'
                 }
                 message_list.append(sub_message_object)

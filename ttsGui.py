@@ -233,7 +233,7 @@ class ttsGui():
             elif event == 'ADDSOUND':
                 if values['SOUNDKEY'] != '':
                     self.window['SOUNDKEY'].update('')
-                    self.app.sound_list[values['SOUNDKEY']] = values['SOUND']
+                    self.app.sound_list[values['SOUNDKEY']] = values['SOUND'].lower()
                     self.window['SOUNDS'].update([f'{key}: {self.app.sound_list[key]}' for key in self.app.sound_list.keys()])
                     self.app.config.set('DEFAULT', 'Sounds', str(self.app.sound_list))
                     with open('config.ini', 'w') as configfile:
