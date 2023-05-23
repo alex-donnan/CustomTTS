@@ -20,7 +20,6 @@ class ttsGui():
         self.current_queue_list = []
         self.status = 'assets/red.png'
         self.themes = sg.theme_list()
-        self.worker = threading.Thread(target=self.app.worker, daemon=True)
         self.socket = None
 
         # Theming
@@ -125,10 +124,7 @@ class ttsGui():
             # Standard operations
             if event in (None, sg.WINDOW_CLOSED, 'Quit', 'Exit'):
                 # Clean the outputs, if they got saved or crash
-                for file in os.listdir(self.app.output_path):
-                    if file.endswith('.wav') or file.endswith('.mp3'):
-                        print(f'Removing {file}')
-                        os.remove(os.path.join(self.app.output_path, file))
+                self.clear_queue()
                 print('Closing app.')
                 break
 
@@ -138,7 +134,6 @@ class ttsGui():
                     try:
                         #Start workers and websocket
                         self.app.set_channel(values['USERNAME'])
-                        self.worker.start()
                         if self.app.wsapp == None:
                             asyncio.run(self.app.run())
                             self.socket = threading.Thread(target=self.app.wsapp.run_forever, daemon=True)
@@ -229,42 +224,40 @@ class ttsGui():
                     # TODO FIX ME
                     #
                     # Collect messages
-                    with self.app.tts_queue.mutex:
-                        items = []
-                        messages = []
-                        for item in list(self.app.tts_queue.queue):
-                            messages.append(item['user_name'] + ': ' + item['chat_message'])
-                            items.append(item)
+                    # with self.app.tts_queue.mutex:
+                    #     items = []
+                    #     messages = []
+                    #     for item in list(self.app.tts_queue.queue):
+                    #         messages.append(item['user_name'] + ': ' + item['chat_message'])
+                    #         items.append(item)
 
-                        if messages != self.current_queue_list:
-                            self.current_queue_list = messages
-                            self.window['QUEUE'].update('\n'.join(messages))
-                            for tag in multiline.tag_names():
-                                if tag != 'fakesel' and tag != 'indent':
-                                    multiline.tag_remove(tag, '1.0', 'end')
-                            for i in range(len(items)):
-                                multiline.tag_config(item['user_name'], font=('Helvetica', 10, 'bold'))
-                                multiline.tag_add(item['user_name'], f'{i+1}.0',
-                                                  f'{i+1}.{len(items[i]["user_name"])}')
+                    #     if messages != self.current_queue_list:
+                    #         self.current_queue_list = messages
+                    #         self.window['QUEUE'].update('\n'.join(messages))
+                    #         for tag in multiline.tag_names():
+                    #             if tag != 'fakesel' and tag != 'indent':
+                    #                 multiline.tag_remove(tag, '1.0', 'end')
+                    #         for i in range(len(items)):
+                    #             multiline.tag_config(item['user_name'], font=('Helvetica', 10, 'bold'))
+                    #             multiline.tag_add(item['user_name'], f'{i+1}.0',
+                    #                               f'{i+1}.{len(items[i]["user_name"])}')
 
-                            multiline.tag_add('indent', '1.0', 'end')
+                    #         multiline.tag_add('indent', '1.0', 'end')
 
-                    time.sleep(0.5)
+                    time.sleep(1)
 
                     # Disconnected? Try to connect
                     if not self.app.connected:
                         self.socket.start()
                 else:
                     if os.path.exists(self.app.credentials_path):
-                        self.worker.start()
+                        print('Credentials exist, starting WebSocket app.')
                         asyncio.run(self.app.run())
                         self.socket = threading.Thread(target=self.app.wsapp.run_forever, daemon=True)
                         self.socket.start()
 
                         #safety
                         time.sleep(2)
-
-                time.sleep(1)
             except Exception as e:
                 print(f'Error updating the connection status and queue: ' + str(e))
                 print('Trying update again in 2 seconds...')
@@ -274,12 +267,24 @@ class ttsGui():
         was_paused = self.app.pause_flag
         self.app.pause_flag = True
         self.app.clear_flag = True
+        for file in os.listdir(self.app.output_path):
+            if file.endswith('.wav') or file.endswith('.mp3'):
+                print(f'Removing {file}')
+                os.remove(os.path.join(self.app.output_path, file))
+            
+        while not self.app.gen_queue.empty():
+            try:
+                self.app.gen_queue.get(block=False)
+                self.app.gen_queue.task_done()
+            except queue.Empty:
+                break
+
         while not self.app.tts_queue.empty():
             try:
                 self.app.tts_queue.get(block=False)
+                self.app.tts_queue.task_done()
             except queue.Empty:
                 break
-            self.app.tts_queue.task_done()
         self.app.pause_flag = was_paused
 
 if __name__ == '__main__':

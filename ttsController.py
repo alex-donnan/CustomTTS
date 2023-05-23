@@ -98,7 +98,11 @@ class ttsController:
                                     tts_languages_file=languages_path if os.path.exists(languages_path) else None)
             self.tts_synth[model_name] = new_synth
 
+        self.gen_queue = queue.Queue()
         self.tts_queue = queue.Queue()
+
+        self.gen_thread = None
+        self.tts_thread = None 
 
         self.currently_playing = None
         self.pause_flag = False
@@ -106,6 +110,34 @@ class ttsController:
         self.speaker_list = eval(self.config['DEFAULT']['Speakers'])
         self.connected = False
 
+    # Worker
+    def gen_worker(self):
+        while True:
+            if self.clear_flag:
+                if self.tts_queue.empty() and self.gen_queue.empty():
+                    self.clear_flag = False
+                    continue
+
+            try:
+                self.gen_thread = self.gen_queue.get(timeout=1)
+                self.gen_thread()
+            except (queue.Empty, IndexError):
+                continue
+
+    def tts_worker(self):
+        while True:
+            # Play any sounds
+            if not self.pause_flag:
+                try:
+                    self.tts_thread = self.tts_queue.get(timeout=1)
+                    self.tts_thread()
+                except (queue.Empty, IndexError):
+                    continue
+                continue
+
+            sleep(1)
+
+    # Audio generation or playback
     def generate_fname(self):
         fname = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
         # In the highly unlikely event it exists already, recurse
@@ -146,8 +178,10 @@ class ttsController:
                 # Put the file in the play queue
                 message_object['filename'] = output_file
 
-        print(msg)
-        self.tts_queue.put(msg)
+        self.tts_queue.put(lambda: self.play_wav(msg['message']))
+        self.gen_thread = None
+        self.gen_queue.task_done()
+        return
 
     def play_wav(self, message_list):
         soundplay("assets/cheer.wav", block=True)
@@ -164,26 +198,25 @@ class ttsController:
 
             os.remove(file)
 
-        # Hack way to let GUI know to decrease the visible messages
+        # Hack way to let GUI know to decrease the visible messages?
         self.currently_playing = None
-        try:
-            self.tts_queue.get(timeout=1)
-        except queue.Empty:
-            return
+        self.tts_thread = None
         self.tts_queue.task_done()
+        return
 
     # WebSocket event methods
     def on_open(self, ws):
         # update the color
         self.connected = True
+        try:
+            print('Starting worker thread.')
+            threading.Thread(target=self.tts_worker, daemon=True).start()
+            threading.Thread(target=self.gen_worker, daemon=True).start()
+        except:
+            return
         print('Connected to Twitch')
 
-    def on_message(self, ws, msg):
-        def run(self, message):
-            message['message'] = remove_cheermotes(message['chat_message'])
-            message['message'] = self.split_message(message['message'])
-            self.generate_wav(message)
-        
+    def on_message(self, ws, msg):        
         msg = json.loads(msg)
         if msg['metadata']['message_type'] == 'session_welcome':
             # session variables
@@ -223,7 +256,9 @@ class ttsController:
                     'chat_message': event['message']
                 }
 
-            threading.Thread(target=run, args=[self, message], daemon=True).start()
+            message['message'] = remove_cheermotes(message['chat_message'])
+            message['message'] = self.split_message(message['message'])
+            self.gen_queue.put(lambda: self.generate_wav(message))
 
     def on_error(self, ws, msg):
         print(f'An error has occurred: {msg}')
@@ -231,36 +266,6 @@ class ttsController:
     def on_close(self, ws, close_status_code, msg):
         self.connected = False
         print('Closed')
-
-    # Worker
-    def worker(self):
-        while True:
-            if self.clear_flag:
-                if self.tts_queue.empty:
-                    self.clear_flag = False
-                    continue
-
-            if self.pause_flag:
-                sleep(0.5)
-                continue
-
-            time.sleep(2)
-            try:
-                item = list(self.tts_queue.queue)[0]
-            except IndexError:
-                continue
-
-            if "no_message" in item and item["no_message"]:
-                soundplay("assets/cheer.wav", block=True)
-                try:
-                    self.tts_queue.get(timeout=1)
-                except queue.Empty:
-                    continue
-                self.tts_queue.task_done()
-                continue
-
-            print(item)
-            self.play_wav(item['message'])
 
     # Utilites
     def split_message(self, message):
