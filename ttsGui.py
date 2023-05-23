@@ -281,8 +281,11 @@ class ttsGui():
 
         for file in os.listdir(self.app.output_path):
             if file.endswith('.wav') or file.endswith('.mp3'):
-                print(f'Removing {file}')
-                os.remove(os.path.join(self.app.output_path, file))
+                try:
+                    print(f'Removing {file}')
+                    os.remove(os.path.join(self.app.output_path, file))
+                except PermissionError:
+                    continue
 
         self.app.tts_text = []
         self.app.pause_flag = was_paused
