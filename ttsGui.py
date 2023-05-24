@@ -24,7 +24,8 @@ class ttsGui():
         self.socket = None
 
         # Theming
-        sg.theme('DefaultNoMoreNagging')
+        #sg.theme('DefaultNoMoreNagging')
+        sg.theme('LightGrey2')
 
         # PSGUI
         connection = [
@@ -44,7 +45,7 @@ class ttsGui():
                 sg.Button('Pause', key='PAUSE'),
                 sg.Button('Clear', key='CLEAR')
             ],
-            [sg.Multiline('', size=(80, 16), expand_x=True, disabled=True, enable_events=True, key='QUEUE',
+            [sg.Multiline('', size=(80, 16), expand_x=True, expand_y=True, disabled=True, enable_events=True, key='QUEUE',
                           do_not_clear=False)]
         ]
 
@@ -60,6 +61,7 @@ class ttsGui():
             [
                 sg.Text('Voice Pairings'),
                 sg.Push(),
+                sg.Button('Load Model', key='LOADMODEL'),
                 sg.Button('Add', key='ADDVOICE'),
                 sg.Button('Remove', key='REMOVEVOICE')
             ],
@@ -72,19 +74,19 @@ class ttsGui():
                          (' - ' + self.app.speaker_list[key]['speaker']
                         if self.app.speaker_list[key]['speaker'] is not None else '')
                          for key in self.app.speaker_list.keys()],
-                        size=(20, 16), expand_x=True, enable_events=True, key='VOICES')]
+                        size=(20, 16), expand_x=True, expand_y=True, enable_events=True, key='VOICES')]
         ]
 
         sound_list = []
         for file in os.listdir(self.app.asset_path):
-            if file.endswith('wav'):
+            if file.endswith('wav') or file.endswith('mp3'):
                 sound_list.append(file)
 
         sound_control = [
             [
                 sg.Text('Sound Pairings'),
                 sg.Push(),
-                sg.Button('Load Wav', key='LOADSOUND'),
+                sg.Button('Load Sound', key='LOADSOUND'),
                 sg.Button('Add', key='ADDSOUND'),
                 sg.Button('Remove', key='REMOVESOUND')
             ],
@@ -93,7 +95,7 @@ class ttsGui():
                 sg.Combo(sound_list, expand_x=True, readonly=True, key='SOUND')
             ],
             [sg.Listbox([f'{key}: {self.app.sound_list[key]}' for key in self.app.sound_list.keys()],
-                        size=(20, 16), expand_x=True, enable_events=True, key='SOUNDS')]
+                        size=(20, 16), expand_x=True, expand_y=True, enable_events=True, key='SOUNDS')]
         ]
 
         tabs = sg.TabGroup([[
@@ -115,7 +117,7 @@ class ttsGui():
             [message]
         ]
 
-        self.window = sg.Window('Custom TTS', layout, icon='assets/sir.ico', finalize=True)
+        self.window = sg.Window('Custom TTS', layout, icon='assets/sir.ico', finalize=True, size=(620, 540))
         self.window['USERNAME'].bind('<Return>', '_Enter')
         self.window['MSG'].bind('<Return>', '_Enter')
 
@@ -189,25 +191,46 @@ class ttsGui():
                     }, indent=4)
                     self.app.on_message(self.app.wsapp, data)
                     self.window['MSG'].update('')
+            elif event == 'LOADMODEL':
+                folder = sg.popup_get_folder('Select the model folder you would like to add. \
+                    \nHeads up, this will increase memory usage and may slow down the app. \
+                    \nYour model file MUST include: \
+                    \n - model_file.pth \
+                    \n - config.json \
+                    \nYou model can also include: \
+                    \n - speakers.pth \
+                    \n - language_ids.json', title='Model Selector')
+                if folder:
+                    try:
+                        shutil.copytree(folder, self.app.model_dir + folder.split('/')[-1])
+                        model_thread = threading.Thread(target=self.app.add_model, args=[folder.split('/')[-1]], daemon=True)
+                        model_thread.start()
+                    except Exception as e:
+                        sg.popup(f'Failed to load the model:\n{e}', title='Model Failure')
+                        if os.path.exists(self.app.model_dir + folder.split('/')[-1]):
+                            shutil.rmtree(self.app.model_dir + folder.split('/')[-1])
             elif event == 'ADDVOICE':
                 if values['KEY'] != '':
-                    self.window['KEY'].update('')
-                    voice_object = {
-                        'model': values['VOICE'].split(': ')[0],
-                        'speaker': values['VOICE'].split(': ')[1] if len(values['VOICE'].split(': ')) > 1 else None
-                    }
-                    self.app.speaker_list[values['KEY']] = voice_object
+                    if values['KEY'].lower() in self.app.sound_list.keys() or values['KEY'].lower() in self.app.speaker_list.keys():
+                        sg.popup(f'The key "{values["KEY"]}" is already in use, please change.', title='Keyword Error')
+                    else:
+                        self.window['KEY'].update('')
+                        voice_object = {
+                            'model': values['VOICE'].split(': ')[0],
+                            'speaker': values['VOICE'].split(': ')[1] if len(values['VOICE'].split(': ')) > 1 else None
+                        }
+                        self.app.speaker_list[values['KEY']] = voice_object
 
-                    self.window['VOICES'].update([key + ': ' +
-                                                  self.app.speaker_list[key]['model'] +
-                                                  (' - ' + self.app.speaker_list[key]['speaker']
-                                                   if self.app.speaker_list[key]['speaker'] is not None else '')
-                                                  for key in self.app.speaker_list.keys()])
-                    self.app.config.set('DEFAULT', 'Speakers', str(self.app.speaker_list))
-                    with open('config.ini', 'w') as configfile:
-                        self.app.config.write(configfile)
+                        self.window['VOICES'].update([key + ': ' +
+                                                      self.app.speaker_list[key]['model'] +
+                                                      (' - ' + self.app.speaker_list[key]['speaker']
+                                                       if self.app.speaker_list[key]['speaker'] is not None else '')
+                                                      for key in self.app.speaker_list.keys()])
+                        self.app.config.set('DEFAULT', 'Speakers', str(self.app.speaker_list))
+                        with open('config.ini', 'w') as configfile:
+                            self.app.config.write(configfile)
                 else:
-                    sg.popup(f'You\'re missing either a keyword or voice selection.')
+                    sg.popup(f'You\'re missing either a keyword or voice selection.', title='Voice Error')
             elif event == 'REMOVEVOICE':
                 voices = self.window['VOICES'].get()
                 for voice in voices:
@@ -221,25 +244,28 @@ class ttsGui():
                 with open('config.ini', 'w') as configfile:
                     self.app.config.write(configfile)
             elif event == 'LOADSOUND' or event == 'FILE':
-                file = sg.popup_get_file('Select the WAV you would like to add:', title='WAV Selector 9000', file_types=(('WAV Files', '*.wav'), ('ALL Files', '*.*')))
+                file = sg.popup_get_file('Select the Wav or MP3 sound you would like to add:', title='Soundbath Selector 9000', file_types=(('Acceptable Files', '*.wav *.mp3'), ('Other Filty File Types', '*.*')))
                 if file:
                     shutil.copy(file, self.app.asset_path + file.split('/')[-1])
 
                     sound_list = []
                     for file in os.listdir(self.app.asset_path):
-                        if file.endswith('wav'):
+                        if file.endswith('wav') or file.endswith('mp3'):
                             sound_list.append(file)
                     self.window['SOUND'].update(values=sound_list);
             elif event == 'ADDSOUND':
                 if values['SOUNDKEY'] != '':
-                    self.window['SOUNDKEY'].update('')
-                    self.app.sound_list[values['SOUNDKEY']] = values['SOUND'].lower()
-                    self.window['SOUNDS'].update([f'{key}: {self.app.sound_list[key]}' for key in self.app.sound_list.keys()])
-                    self.app.config.set('DEFAULT', 'Sounds', str(self.app.sound_list))
-                    with open('config.ini', 'w') as configfile:
-                        self.app.config.write(configfile)
+                    if values['KEY'].lower() in self.app.sound_list.keys() or values['KEY'].lower() in self.app.speaker_list.keys():
+                        sg.popup(f'The key "{values["SOUNDKEY"]}" is already in use, please change.', title='Keyword Error')
+                    else:
+                        self.window['SOUNDKEY'].update('')
+                        self.app.sound_list[values['SOUNDKEY']] = values['SOUND'].lower()
+                        self.window['SOUNDS'].update([f'{key}: {self.app.sound_list[key]}' for key in self.app.sound_list.keys()])
+                        self.app.config.set('DEFAULT', 'Sounds', str(self.app.sound_list))
+                        with open('config.ini', 'w') as configfile:
+                            self.app.config.write(configfile)
                 else:
-                    sg.popup('You\'re missing either a keyword or sound selection.')
+                    sg.popup('You\'re missing either a keyword or sound selection.', title='Sound Error')
             elif event == 'REMOVESOUND':
                 sounds = self.window['SOUNDS'].get()
                 for sound in sounds:
@@ -250,6 +276,7 @@ class ttsGui():
                     self.app.config.write(configfile)
 
         self.window.close()
+
 
     def refresh_queue(self, multiline=None):
         while True:
@@ -283,7 +310,8 @@ class ttsGui():
 
                     # Disconnected? Try to connect
                     if not self.app.connected:
-                        self.socket.start()
+                        self.app.wsapp = None
+                        asyncio.run(self.app.auth())
                 else:
                     if os.path.exists(self.app.credentials_path):
                         print('Credentials exist, starting WebSocket app.')
