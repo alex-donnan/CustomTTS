@@ -17,6 +17,7 @@ import requests
 import string
 import time
 import threading
+import shutil
 import urllib.parse
 import websocket
 import random
@@ -68,8 +69,9 @@ class ttsController:
         self.config = configparser.ConfigParser()
         self.config.read('config.ini')
 
-        self.output_path = self.config['DEFAULT']['OutputDirectory']
-        self.credentials_path = os.path.join(self.config['DEFAULT']['OutputDirectory'], "credentials.json")
+        self.output_path = self.config['DEFAULT']['OutputDir']
+        self.asset_path = self.config['DEFAULT']['AssetsDir']
+        self.credentials_path = os.path.join(self.config['DEFAULT']['OutputDir'], "credentials.json")
         
         self.target_channel = self.config['DEFAULT']['TargetChannel']
         self.app_id = self.config['DEFAULT']['TwitchAppId']
@@ -109,6 +111,7 @@ class ttsController:
         self.pause_flag = False
         self.clear_flag = False
         self.speaker_list = eval(self.config['DEFAULT']['Speakers'])
+        self.sound_list = eval(self.config['DEFAULT']['Sounds'])
         self.connected = False
 
     # Worker
@@ -146,37 +149,39 @@ class ttsController:
         return fname
 
     def generate_wav(self, msg):
-        for message_object in msg['message']:
+        for id_msg, message_object in enumerate(msg['message']):
             output_file = os.path.join(self.output_path, self.generate_fname())
+            prepend_file = None
 
             if self.clear_flag: continue
             voice = message_object['voice']
             message = message_object['message']
-            print(f'New file for {voice}: {output_file}')
 
             # Select voice generator
-            if message.strip() != '':
-                if voice != 'brian' and voice in self.speaker_list.keys() \
-                        and self.speaker_list[voice]['model'] in self.tts_synth.keys():
-                    message = convert_numbers(message)
-                    message = replace_emoji(message)
+            if voice != 'brian' and voice in self.speaker_list.keys() \
+                    and self.speaker_list[voice]['model'] in self.tts_synth.keys():
+                message = convert_numbers(message)
+                message = replace_emoji(message)
 
-                    # generate
-                    self.tts_synth[self.speaker_list[voice]['model']] \
-                        .save_wav(self.tts_synth[self.speaker_list[voice]['model']]
-                                  .tts(message, speaker_name=self.speaker_list[voice]['speaker'], language_name='en'),
-                                  output_file + '.wav')
-                else:
-                    # Do brian
-                    url = 'https://api.streamelements.com/kappa/v2/speech?voice=Brian&text=' + urllib.parse.quote_plus(
-                        message)
-                    data = requests.get(url)
-                    with open(output_file + '.mp3', 'wb') as f:
-                        f.write(data.content)
-                    f.close()
+                # generate
+                self.tts_synth[self.speaker_list[voice]['model']] \
+                    .save_wav(self.tts_synth[self.speaker_list[voice]['model']]
+                              .tts(message, speaker_name=self.speaker_list[voice]['speaker'], language_name='en'),
+                              output_file + '.wav')
+            elif voice in self.sound_list.keys():
+                shutil.copy(os.path.join(self.asset_path, self.sound_list[voice]), output_file + '.wav')
+            else:
+                # Do Brian
+                url = 'https://api.streamelements.com/kappa/v2/speech?voice=Brian&text=' + urllib.parse.quote_plus(
+                    message)
+                data = requests.get(url)
+                with open(output_file + '.mp3', 'wb') as f:
+                    f.write(data.content)
+                f.close()
 
-                # Put the file in the play queue
-                message_object['filename'] = output_file
+            # Put the file in the play queue
+            print(f'New file for {voice}: {message}: {output_file}')
+            message_object['filename'] = output_file
 
         self.tts_queue.put(lambda: self.play_wav(msg['message']))
         self.gen_thread = None
@@ -279,15 +284,27 @@ class ttsController:
         sub_messages = message.split('#')
         while '' in sub_messages:
             sub_messages.remove('')
+
         message_list = []
+        voice = None
         for sub_message in sub_messages:
+            # Check for sounds to remove, then re-check speakers
+            if sub_message.split()[0].lower() in self.sound_list.keys():
+                sound = sub_message.split()[0]
+                sub_message = sub_message.replace(sound, (voice if voice else 'brian'))
+                sub_message_object = {
+                    'voice': sound.lower(),
+                    'message': '-'
+                }
+                message_list.append(sub_message_object)
+
             if sub_message.split()[0].lower() in self.speaker_list.keys() or sub_message.split()[0].lower() == "brian":
                 voice = sub_message.split()[0].lower()
                 sub_message_object = {
                     'voice': voice,
                     'message': sub_message.removeprefix(sub_message.split()[0]).strip()
                 }
-                message_list.append(sub_message_object)
+                if sub_message.removeprefix(sub_message.split()[0]).strip() != '': message_list.append(sub_message_object)
             else:
                 if len(message_list) != 0:
                     message_list[sub_messages.index(sub_message) - 1]['message'] += ' #' + sub_message
@@ -296,7 +313,9 @@ class ttsController:
                         'voice': 'brian',
                         'message': sub_message
                     }
-                    message_list.append(sub_message_object)
+                    if sub_message.strip() != '': message_list.append(sub_message_object)
+
+        print(message_list)
         return message_list
 
     async def update_stored_creds(self, token, refresh):

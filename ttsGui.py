@@ -7,6 +7,7 @@ import json
 import os
 import PySimpleGUI as sg
 import queue
+import shutil
 import time
 import threading
 import ttsController as TTS
@@ -63,7 +64,7 @@ class ttsGui():
                 sg.Button('Remove', key='REMOVEVOICE')
             ],
             [
-                sg.Input('keyword', size=(15, 1), key='KEY'),
+                sg.Input('Keyword', size=(15, 1), key='KEY'),
                 sg.Combo(speaker_list, expand_x=True, readonly=True, key='VOICE')
             ],
             [sg.Listbox([key + ': ' +
@@ -73,9 +74,32 @@ class ttsGui():
                          for key in self.app.speaker_list.keys()],
                         size=(20, 16), expand_x=True, enable_events=True, key='VOICES')]
         ]
+
+        sound_list = []
+        for file in os.listdir(self.app.asset_path):
+            if file.endswith('wav'):
+                sound_list.append(file)
+
+        sound_control = [
+            [
+                sg.Text('Sound Pairings'),
+                sg.Push(),
+                sg.Button('Load Wav', key='LOADSOUND'),
+                sg.Button('Add', key='ADDSOUND'),
+                sg.Button('Remove', key='REMOVESOUND')
+            ],
+            [
+                sg.Input('Keyword', size=(15, 1), key='SOUNDKEY'),
+                sg.Combo(sound_list, expand_x=True, readonly=True, key='SOUND')
+            ],
+            [sg.Listbox([f'{key}: {self.app.sound_list[key]}' for key in self.app.sound_list.keys()],
+                        size=(20, 16), expand_x=True, enable_events=True, key='SOUNDS')]
+        ]
+
         tabs = sg.TabGroup([[
             sg.Tab('Queue', queue_control),
-            sg.Tab('Speakers', model_control)
+            sg.Tab('Speakers', model_control),
+            sg.Tab('Sounds', sound_control)
         ]], expand_x=True)
 
         message = [
@@ -120,6 +144,7 @@ class ttsGui():
         # Run the window capturing events
         while True:
             event, values = self.window.read()
+            print(event)
 
             # Standard operations
             if event in (None, sg.WINDOW_CLOSED, 'Quit', 'Exit'):
@@ -193,6 +218,34 @@ class ttsGui():
                                                if self.app.speaker_list[key]['speaker'] is not None else '')
                                               for key in self.app.speaker_list.keys()])
                 self.app.config.set('DEFAULT', 'Speakers', str(self.app.speaker_list))
+                with open('config.ini', 'w') as configfile:
+                    self.app.config.write(configfile)
+            elif event == 'LOADSOUND' or event == 'FILE':
+                file = sg.popup_get_file('Select the WAV you would like to add:', title='WAV Selector 9000', file_types=(('WAV Files', '*.wav'), ('ALL Files', '*.*')))
+                if file:
+                    shutil.copy(file, self.app.asset_path + file.split('/')[-1])
+
+                    sound_list = []
+                    for file in os.listdir(self.app.asset_path):
+                        if file.endswith('wav'):
+                            sound_list.append(file)
+                    self.window['SOUND'].update(values=sound_list);
+            elif event == 'ADDSOUND':
+                if values['SOUNDKEY'] != '':
+                    self.window['SOUNDKEY'].update('')
+                    self.app.sound_list[values['SOUNDKEY']] = values['SOUND'].lower()
+                    self.window['SOUNDS'].update([f'{key}: {self.app.sound_list[key]}' for key in self.app.sound_list.keys()])
+                    self.app.config.set('DEFAULT', 'Sounds', str(self.app.sound_list))
+                    with open('config.ini', 'w') as configfile:
+                        self.app.config.write(configfile)
+                else:
+                    sg.popup('You\'re missing either a keyword or sound selection.')
+            elif event == 'REMOVESOUND':
+                sounds = self.window['SOUNDS'].get()
+                for sound in sounds:
+                    self.app.sound_list.pop(sound.split(':')[0])
+                self.window['SOUNDS'].update([f'{key}: {self.app.sound_list[key]}' for key in self.app.sound_list.keys()])
+                self.app.config.set('DEFAULT', 'Sounds', str(self.app.sound_list))
                 with open('config.ini', 'w') as configfile:
                     self.app.config.write(configfile)
 
