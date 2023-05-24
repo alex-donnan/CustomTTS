@@ -45,7 +45,7 @@ class ttsGui():
                 sg.Button('Pause', key='PAUSE'),
                 sg.Button('Clear', key='CLEAR')
             ],
-            [sg.Multiline('', size=(80, 16), expand_x=True, disabled=True, enable_events=True, key='QUEUE',
+            [sg.Multiline('', size=(80, 16), expand_x=True, expand_y=True, disabled=True, enable_events=True, key='QUEUE',
                           do_not_clear=False)]
         ]
 
@@ -74,19 +74,19 @@ class ttsGui():
                          (' - ' + self.app.speaker_list[key]['speaker']
                         if self.app.speaker_list[key]['speaker'] is not None else '')
                          for key in self.app.speaker_list.keys()],
-                        size=(20, 16), expand_x=True, enable_events=True, key='VOICES')]
+                        size=(20, 16), expand_x=True, expand_y=True, enable_events=True, key='VOICES')]
         ]
 
         sound_list = []
         for file in os.listdir(self.app.asset_path):
-            if file.endswith('wav'):
+            if file.endswith('wav') or file.endswith('mp3'):
                 sound_list.append(file)
 
         sound_control = [
             [
                 sg.Text('Sound Pairings'),
                 sg.Push(),
-                sg.Button('Load Wav', key='LOADSOUND'),
+                sg.Button('Load Sound', key='LOADSOUND'),
                 sg.Button('Add', key='ADDSOUND'),
                 sg.Button('Remove', key='REMOVESOUND')
             ],
@@ -95,7 +95,7 @@ class ttsGui():
                 sg.Combo(sound_list, expand_x=True, readonly=True, key='SOUND')
             ],
             [sg.Listbox([f'{key}: {self.app.sound_list[key]}' for key in self.app.sound_list.keys()],
-                        size=(20, 16), expand_x=True, enable_events=True, key='SOUNDS')]
+                        size=(20, 16), expand_x=True, expand_y=True, enable_events=True, key='SOUNDS')]
         ]
 
         tabs = sg.TabGroup([[
@@ -196,8 +196,10 @@ class ttsGui():
                     \nHeads up, this will increase memory usage and may slow down the app. \
                     \nYour model file MUST include: \
                     \n - model_file.pth \
+                    \n - config.json \
+                    \nYou model can also include: \
                     \n - speakers.pth \
-                    \n - config.json', title='Model Selector')
+                    \n - language_ids.json', title='Model Selector')
                 if folder:
                     try:
                         shutil.copytree(folder, self.app.model_dir + folder.split('/')[-1])
@@ -242,13 +244,13 @@ class ttsGui():
                 with open('config.ini', 'w') as configfile:
                     self.app.config.write(configfile)
             elif event == 'LOADSOUND' or event == 'FILE':
-                file = sg.popup_get_file('Select the WAV you would like to add:', title='WAV Selector 9000', file_types=(('WAV Files', '*.wav'), ('ALL Files', '*.*')))
+                file = sg.popup_get_file('Select the Wav or MP3 sound you would like to add:', title='Soundbath Selector 9000', file_types=(('Acceptable Files', '*.wav *.mp3'), ('Other Filty File Types', '*.*')))
                 if file:
                     shutil.copy(file, self.app.asset_path + file.split('/')[-1])
 
                     sound_list = []
                     for file in os.listdir(self.app.asset_path):
-                        if file.endswith('wav'):
+                        if file.endswith('wav') or file.endswith('mp3'):
                             sound_list.append(file)
                     self.window['SOUND'].update(values=sound_list);
             elif event == 'ADDSOUND':

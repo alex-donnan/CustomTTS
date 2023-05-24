@@ -138,7 +138,7 @@ class ttsController:
 
     def generate_wav(self, msg):
         for id_msg, message_object in enumerate(msg['message']):
-            output_file = os.path.join(self.output_path, self.generate_fname())
+            output_file = self.generate_fname()
             prepend_file = None
 
             if self.clear_flag: continue
@@ -151,19 +151,20 @@ class ttsController:
                 message = convert_numbers(message)
                 message = replace_emoji(message)
 
-                # generate
+                # Generate
                 self.tts_synth[self.speaker_list[voice]['model']] \
                     .save_wav(self.tts_synth[self.speaker_list[voice]['model']]
                               .tts(message, speaker_name=self.speaker_list[voice]['speaker'], language_name='en'),
-                              output_file + '.wav')
+                              self.output_path + output_file + '.wav')
             elif voice in self.sound_list.keys():
-                shutil.copy(os.path.join(self.asset_path, self.sound_list[voice]), output_file + '.wav')
+                # Dear god forgive me for this sin
+                shutil.copy(os.path.join(self.asset_path, self.sound_list[voice]), self.output_path + output_file + os.path.splitext(self.sound_list[voice])[-1])
             else:
                 # Do Brian
                 url = 'https://api.streamelements.com/kappa/v2/speech?voice=Brian&text=' + urllib.parse.quote_plus(
                     message)
                 data = requests.get(url)
-                with open(output_file + '.mp3', 'wb') as f:
+                with open(self.output_path + output_file + '.mp3', 'wb') as f:
                     f.write(data.content)
                 f.close()
 
@@ -181,16 +182,20 @@ class ttsController:
         sleep(0.25)
 
         for message_object in message_list:
-            file = message_object['filename'] + ('.wav' if message_object['voice'] != 'brian' else '.mp3')
-            self.currently_playing = soundplay(file)
-            while getIsPlaying(self.currently_playing):
-                if self.clear_flag:
-                    stopsound(self.currently_playing)
-                sleep(0.5)
-            stopsound(self.currently_playing)
-
-            try: os.remove(file)
-            except: continue
+            file = None
+            for f in os.listdir(self.output_path):
+                if message_object['filename'] == f[0:6]: file = self.output_path + f
+            try:
+                self.currently_playing = soundplay(file)
+                while getIsPlaying(self.currently_playing):
+                    if self.clear_flag:
+                        stopsound(self.currently_playing)
+                    sleep(0.5)
+                stopsound(self.currently_playing)
+                os.remove(file)
+            except:
+                print(f'Could not play file.')
+                continue
 
         # Hack way to let GUI know to decrease the visible messages?
         self.currently_playing = None
@@ -276,19 +281,23 @@ class ttsController:
             sub_messages.remove('')
 
         message_list = []
-        voice = None
-        for sub_message in sub_messages:
+        voice = 'brian'
+        for i, sub_message in enumerate(sub_messages):
+            # Should we consider the first word in message a keyword
+            key_check = (i > 0 or (i == 0 and message[0] == '#'))
+
             # Check for sounds to remove, then re-check speakers
-            if sub_message.split()[0].lower() in self.sound_list.keys():
+            if key_check and sub_message.split()[0].lower() in self.sound_list.keys():
                 sound = sub_message.split()[0]
-                sub_message = sub_message.replace(sound, (voice if voice else 'brian'))
+                sub_message = sub_message.replace(sound, voice, 1)
                 sub_message_object = {
                     'voice': sound.lower(),
                     'message': '-'
                 }
                 message_list.append(sub_message_object)
 
-            if sub_message.split()[0].lower() in self.speaker_list.keys() or sub_message.split()[0].lower() == "brian":
+            # Check your speakers
+            if key_check and (sub_message.split()[0].lower() in self.speaker_list.keys() or sub_message.split()[0].lower() == "brian"):
                 voice = sub_message.split()[0].lower()
                 sub_message_object = {
                     'voice': voice,
