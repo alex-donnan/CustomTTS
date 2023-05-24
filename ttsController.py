@@ -86,19 +86,7 @@ class ttsController:
         self.tts_synth = {}
 
         for model_name in dirs:
-            model_path = os.path.join(self.model_dir, model_name,
-                                      glob.glob('*.pth', root_dir=os.path.join(self.model_dir, model_name))[0])
-            config_path = os.path.join(self.model_dir, model_name, 'config.json')
-            speakers_path = os.path.join(self.model_dir, model_name, 'speakers.pth')
-            languages_path = os.path.join(self.model_dir, model_name, 'language_ids.json')
-            if not (os.path.exists(model_path) and os.path.exists(config_path)):
-                print('Missing file for model in directory: ' + model_name)
-                continue
-            new_synth = Synthesizer(tts_checkpoint=model_path,
-                                    tts_config_path=config_path,
-                                    tts_speakers_file=speakers_path if os.path.exists(speakers_path) else None,
-                                    tts_languages_file=languages_path if os.path.exists(languages_path) else None)
-            self.tts_synth[model_name] = new_synth
+            self.add_model(model_name)
 
         self.gen_queue = queue.Queue()
         self.tts_queue = queue.Queue()
@@ -274,10 +262,12 @@ class ttsController:
 
     def on_error(self, ws, msg):
         print(f'An error has occurred: {msg}')
+        return
 
     def on_close(self, ws, close_status_code, msg):
         self.connected = False
         print('Closed')
+        return
 
     # Utilites
     def split_message(self, message):
@@ -313,6 +303,7 @@ class ttsController:
                         'voice': 'brian',
                         'message': sub_message
                     }
+
                     if sub_message.strip() != '': message_list.append(sub_message_object)
 
         print(message_list)
@@ -321,7 +312,7 @@ class ttsController:
     async def update_stored_creds(self, token, refresh):
         with open(self.credentials_path, 'w') as f:
             json.dump({'token': token, 'refresh': refresh}, f)
-    
+
     async def auth(self):
         # Just use pre-built twitch auth
         twitch = await Twitch(self.app_id, self.app_secret)
@@ -374,3 +365,19 @@ class ttsController:
         self.config.set('DEFAULT', 'TargetChannel', channel)
         with open('config.ini', 'w') as configfile:
             self.config.write(configfile)
+
+    def add_model(self, model_name):
+        model_path = os.path.join(self.model_dir, model_name,
+                                      glob.glob('*.pth', root_dir=os.path.join(self.model_dir, model_name))[0])
+        config_path = os.path.join(self.model_dir, model_name, 'config.json')
+        speakers_path = os.path.join(self.model_dir, model_name, 'speakers.pth')
+        languages_path = os.path.join(self.model_dir, model_name, 'language_ids.json')
+        if not (os.path.exists(model_path) and os.path.exists(config_path)):
+            print('Missing file for model in directory: ' + model_name)
+            return
+        new_synth = Synthesizer(tts_checkpoint=model_path,
+                                tts_config_path=config_path,
+                                tts_speakers_file=speakers_path if os.path.exists(speakers_path) else None,
+                                tts_languages_file=languages_path if os.path.exists(languages_path) else None)
+        self.tts_synth[model_name] = new_synth
+        return
