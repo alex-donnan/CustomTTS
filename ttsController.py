@@ -1,26 +1,23 @@
-import glob
 from num2words import num2words
 from preferredsoundplayer import *
 from TTS.utils.synthesizer import Synthesizer
-from twitchAPI.helper import first
-from twitchAPI.oauth import UserAuthenticator
+from twitchAPI.oauth import UserAuthenticator, refresh_access_token
 from twitchAPI.twitch import Twitch
 from twitchAPI.types import AuthScope
-from uuid import UUID
 import configparser
 import emoji
+import glob
 import json
 import os
 import queue
+import random
 import re
 import requests
-import string
-import time
-import threading
 import shutil
+import string
+import threading
 import urllib.parse
 import websocket
-import random
 
 DEVMODE = False
 
@@ -58,7 +55,7 @@ class ttsController:
                            "Shamrock"]
     URI = 'https://api.twitch.tv/helix'
     WS_ENDPOINT = 'wss://eventsub.wss.twitch.tv/ws' if not DEVMODE else 'ws://127.0.0.1:8080/ws'
-    SUBS_ENDPOINT = 'https://api.twitch.tv/helix/eventsub/subscriptions' if not DEVMODE else 'http://localhost:8080/eventsub/subscriptions'
+    SUBS_ENDPOINT = 'https://api.twitch.tv/helix/eventsub/subscriptions' if not DEVMODE else 'http://127.0.0.1:8080/eventsub/subscriptions'
     SUBSCRIPTIONS = [
         'channel.subscription.message',
         'channel.subscription.gift',
@@ -66,6 +63,8 @@ class ttsController:
     ]
 
     def __init__(self):
+        self.token = None
+        self.refresh_token = None
         self.config = configparser.ConfigParser()
         self.config.read('config.ini')
 
@@ -319,54 +318,51 @@ class ttsController:
         return message_list
 
     async def update_stored_creds(self, token, refresh):
+        print("Access token refreshed successfully")
         with open(self.credentials_path, 'w') as f:
             json.dump({'token': token, 'refresh': refresh}, f)
 
     async def auth(self):
         # Just use pre-built twitch auth
         twitch = await Twitch(self.app_id, self.app_secret)
-        twitch.user_auth_refresh_callback = self.update_stored_creds
 
         auth = UserAuthenticator(twitch, ttsController.USER_SCOPE)
-        token, refresh_token = await auth.authenticate()
+        self.token, self.refresh_token = await auth.authenticate()
 
         with open(self.credentials_path, 'w') as f:
-            json.dump({'token': token, 'refresh': refresh_token}, f)
+            json.dump({'token': self.token, 'refresh': self.refresh_token}, f)
+
+    async def reauth(self):
+        print("Attempting to refresh access token")
+        self.token, self.refresh_token = await refresh_access_token(self.refresh_token, self.app_id, self.app_secret)
+        await self.update_stored_creds(self.token, self.refresh_token)
 
     async def run(self):
-        # Just use pre-built twitch auth
-        twitch = await Twitch(self.app_id, self.app_secret)
-        twitch.user_auth_refresh_callback = self.update_stored_creds
-
         # Use or generate auth
         if os.path.exists(self.credentials_path):
+            # Get the broadcaster (for ID)
             with open(self.credentials_path) as f:
                 creds = json.load(f)
-            try:
-                await twitch.set_user_authentication(creds['token'], ttsController.USER_SCOPE, creds['refresh'])
-                user = await first(twitch.get_users(logins=[self.target_channel]))
-            except Exception as ex:
-                print(f'Stored token invalid : {ex}')
+                self.token = creds["token"]
+                self.refresh_token = creds["refresh"]
 
-        # Get the broadcaster (for ID)
-        with open(self.credentials_path) as f:
-            creds = json.load(f)
+                self.headers = {
+                    'Authorization': f'Bearer {creds["token"]}',
+                    'Client-Id': self.app_id,
+                    'Content-Type': 'application/json'
+                }
 
-            self.headers = {
-                'Authorization': f'Bearer {creds["token"]}',
-                'Client-Id': self.app_id,
-                'Content-Type': 'application/json'
-            }
-
-            broad_request = requests.get(f'{ttsController.URI}/users?user_login={self.target_channel}', headers=self.headers)
-            self.broadcaster = broad_request.json()
+                broad_request = requests.get(f'{ttsController.URI}/users?user_login={self.target_channel}',
+                                             headers=self.headers)
+                self.broadcaster = broad_request.json()
 
         # Create the socket for threading
         if not self.wsapp:
             print('Creating websocket')
             websocket.setdefaulttimeout(10)
             self.wsapp = websocket.WebSocketApp(ttsController.WS_ENDPOINT,
-                on_open=self.on_open, on_message=self.on_message, on_error=self.on_error, on_close=self.on_close)
+                                                on_open=self.on_open, on_message=self.on_message,
+                                                on_error=self.on_error, on_close=self.on_close)
 
     # Setters
     def set_channel(self, channel: str):

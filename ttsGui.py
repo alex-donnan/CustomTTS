@@ -1,15 +1,11 @@
 import asyncio
-import random
-from tkinter import font
-from tkinter.font import Font
-
 import json
 import os
 import PySimpleGUI as sg
 import queue
 import shutil
-import time
 import threading
+import time
 import ttsController as TTS
 
 DEVMODE = False
@@ -30,11 +26,11 @@ class ttsGui():
         # PSGUI
         connection = [
             sg.Text('Status:'),
-            sg.Image(self.status, size=(16, 16), key='STATUS'),
+            sg.Image(self.status, size=(20, 20), key='STATUS'),
             sg.Push(),
             sg.Text('Twitch Username:'),
             sg.Input(key='USERNAME', default_text=self.app.target_channel),
-            sg.Button('Connect')
+            sg.Button('Connect', key='CONNECT')
         ]
 
         # Messages or Modules as tabs
@@ -156,7 +152,7 @@ class ttsGui():
                 break
 
             # App operations
-            elif event in ('Connect', 'USERNAME_Enter'):
+            elif event in ('CONNECT', 'USERNAME_Enter'):
                 if values['USERNAME'] != '':
                     try:
                         #Start workers and websocket
@@ -285,6 +281,8 @@ class ttsGui():
                 if self.app.wsapp:
                     self.status = 'assets/green.png' if self.app.connected else 'assets/red.png'
                     self.window['STATUS'].update(self.status)
+                    self.window['CONNECT'].update(disabled=True)
+                    self.window['USERNAME'].update(disabled=True)
 
                     # Collect messages
                     items = []
@@ -311,10 +309,12 @@ class ttsGui():
                     # Disconnected? Try to connect
                     if not self.app.connected:
                         self.app.wsapp = None
-                        asyncio.run(self.app.auth())
+                        asyncio.run(self.app.reauth())
                 else:
                     if os.path.exists(self.app.credentials_path):
                         print('Credentials exist, starting WebSocket app.')
+                        self.window['CONNECT'].update(disabled=True)
+                        self.window['USERNAME'].update(disabled=True)
                         asyncio.run(self.app.run())
                         self.socket = threading.Thread(target=self.app.wsapp.run_forever, daemon=True)
                         self.socket.start()
