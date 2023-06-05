@@ -191,7 +191,7 @@ class ttsController:
                         stopsound(self.currently_playing)
                     sleep(0.5)
                 stopsound(self.currently_playing)
-                #os.remove(file)
+                os.remove(file)
             except:
                 print(f'Could not play file.')
                 continue
