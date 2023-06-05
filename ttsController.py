@@ -305,7 +305,7 @@ class ttsController:
                 if sub_message.removeprefix(sub_message.split()[0]).strip() != '': message_list.append(sub_message_object)
             else:
                 if len(message_list) != 0:
-                    message_list[sub_messages.index(sub_message) - 1]['message'] += ' #' + sub_message
+                    message_list[-1]['message'] += ' #' + sub_message
                 else:
                     sub_message_object = {
                         'voice': 'brian',
