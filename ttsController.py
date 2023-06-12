@@ -37,7 +37,7 @@ def remove_cheermotes(raw_message):
     word_list = raw_message.split(" ")
     message = ""
     for word in word_list:
-        if word.startswith(tuple(ttsController.PREFIXES)) and word[-1].isdigit():
+        if word.lower().startswith(tuple(ttsController.PREFIXES)) and word[-1].isdigit():
             continue
         message += word + " "
     message.strip()
@@ -46,13 +46,13 @@ def remove_cheermotes(raw_message):
 
 class ttsController:
     USER_SCOPE = [AuthScope.BITS_READ, AuthScope.CHANNEL_MODERATE, AuthScope.CHANNEL_READ_SUBSCRIPTIONS]
-    PREFIXES = prefixes = ["Cheer", "hryCheer", "BibleThump", "cheerwhal", "Corgo", "uni", "ShowLove", "Party",
-                           "SeemsGood",
-                           "Pride", "Kappa", "FrankerZ", "HeyGuys", "DansGame", "EleGiggle", "TriHard", "Kreygasm",
-                           "4Head",
-                           "SwiftRage", "NotLikeThis", "FailFish", "VoHiYo", "PJSalt", "MrDestructoid", "bday",
-                           "RIPCheer",
-                           "Shamrock"]
+    PREFIXES = prefixes = ["cheer", "hrycheer", "biblethump", "cheerwhal", "corgo", "uni", "showlove", "party",
+                           "seemsgood",
+                           "pride", "kappa", "frankerz", "heyguys", "dansgame", "elegiggle", "trihard", "kreygasm",
+                           "4head",
+                           "swiftrage", "notlikethis", "failfish", "vohiyo", "pjsalt", "mrdestructoid", "bday",
+                           "ripcheer",
+                           "shamrock"]
     URI = 'https://api.twitch.tv/helix'
     WS_ENDPOINT = 'wss://eventsub.wss.twitch.tv/ws' if not DEVMODE else 'ws://127.0.0.1:8080/ws'
     SUBS_ENDPOINT = 'https://api.twitch.tv/helix/eventsub/subscriptions' if not DEVMODE else 'http://127.0.0.1:8080/eventsub/subscriptions'

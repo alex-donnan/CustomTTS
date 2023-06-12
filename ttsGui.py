@@ -18,6 +18,7 @@ class ttsGui():
         self.status = 'assets/red.png'
         self.themes = sg.theme_list()
         self.socket = None
+        self.load_thread = None
 
         # Theming
         #sg.theme('DefaultNoMoreNagging')
@@ -47,7 +48,7 @@ class ttsGui():
 
         speaker_list = []
         for key in self.app.tts_synth.keys():
-            if self.app.tts_synth[key].tts_model.speaker_manager is not None:
+            if self.app.tts_synth[key].tts_model.speaker_manager:
                 for speaker in self.app.tts_synth[key].tts_model.speaker_manager.speaker_names:
                     speaker_list.append(key + ': ' + speaker)
             else:
@@ -66,10 +67,13 @@ class ttsGui():
                 sg.Combo(speaker_list, expand_x=True, readonly=True, key='VOICE')
             ],
             [sg.Listbox([key + ': ' +
-                         self.app.speaker_list[key]['model'] +
-                         (' - ' + self.app.speaker_list[key]['speaker']
-                        if self.app.speaker_list[key]['speaker'] is not None else '')
-                         for key in self.app.speaker_list.keys()],
+                            self.app.speaker_list[key]['model'] +
+                            (
+                                ' - ' + self.app.speaker_list[key]['speaker']
+                                if self.app.speaker_list[key]['speaker'] else ''
+                            )
+                            for key in self.app.speaker_list.keys()
+                        ],
                         size=(20, 16), expand_x=True, expand_y=True, enable_events=True, key='VOICES')]
         ]
 
@@ -199,8 +203,8 @@ class ttsGui():
                 if folder:
                     try:
                         shutil.copytree(folder, self.app.model_dir + folder.split('/')[-1])
-                        model_thread = threading.Thread(target=self.app.add_model, args=[folder.split('/')[-1]], daemon=True)
-                        model_thread.start()
+                        self.load_thread = threading.Thread(target=self.app.add_model, args=[folder.split('/')[-1]], daemon=True)
+                        self.load_thread.start()
                     except Exception as e:
                         sg.popup(f'Failed to load the model:\n{e}', title='Model Failure')
                         if os.path.exists(self.app.model_dir + folder.split('/')[-1]):
@@ -215,7 +219,7 @@ class ttsGui():
                             'model': values['VOICE'].split(': ')[0],
                             'speaker': values['VOICE'].split(': ')[1] if len(values['VOICE'].split(': ')) > 1 else None
                         }
-                        self.app.speaker_list[values['KEY']] = voice_object
+                        self.app.speaker_list[values['KEY'].lower()] = voice_object
 
                         self.window['VOICES'].update([key + ': ' +
                                                       self.app.speaker_list[key]['model'] +
@@ -255,7 +259,7 @@ class ttsGui():
                         sg.popup(f'The key "{values["SOUNDKEY"]}" is already in use, please change.', title='Keyword Error')
                     else:
                         self.window['SOUNDKEY'].update('')
-                        self.app.sound_list[values['SOUNDKEY']] = values['SOUND'].lower()
+                        self.app.sound_list[values['SOUNDKEY'].lower()] = values['SOUND'].lower()
                         self.window['SOUNDS'].update([f'{key}: {self.app.sound_list[key]}' for key in self.app.sound_list.keys()])
                         self.app.config.set('DEFAULT', 'Sounds', str(self.app.sound_list))
                         with open('config.ini', 'w') as configfile:
@@ -303,6 +307,17 @@ class ttsGui():
                                               f'{i+1}.{len(items[i]["user_name"])}')
 
                         multiline.tag_add('indent', '1.0', 'end')
+
+                    if self.load_thread and not self.load_thread.is_alive():
+                        speaker_list = []
+                        for key in self.app.tts_synth.keys():
+                            if self.app.tts_synth[key].tts_model.speaker_manager is not None:
+                                for speaker in self.app.tts_synth[key].tts_model.speaker_manager.speaker_names:
+                                    speaker_list.append(key + ': ' + speaker)
+                            else:
+                                speaker_list.append(key)
+                        self.window['VOICE'].update(values=speaker_list)
+                        self.load_thread = None
 
                     time.sleep(1)
 
