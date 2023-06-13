@@ -255,7 +255,7 @@ class ttsGui():
                     self.window['SOUND'].update(values=sound_list);
             elif event == 'ADDSOUND':
                 if values['SOUNDKEY'] != '':
-                    if values['KEY'].lower() in self.app.sound_list.keys() or values['KEY'].lower() in self.app.speaker_list.keys():
+                    if values['SOUNDKEY'].lower() in self.app.sound_list.keys() or values['SOUNDKEY'].lower() in self.app.speaker_list.keys():
                         sg.popup(f'The key "{values["SOUNDKEY"]}" is already in use, please change.', title='Keyword Error')
                     else:
                         self.window['SOUNDKEY'].update('')
