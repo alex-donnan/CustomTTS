@@ -37,7 +37,7 @@ def remove_cheermotes(raw_message):
     word_list = raw_message.split(" ")
     message = ""
     for word in word_list:
-        if word.startswith(tuple(ttsController.PREFIXES)) and word[-1].isdigit():
+        if word.lower().startswith(tuple(ttsController.PREFIXES)) and word[-1].isdigit():
             continue
         message += word + " "
     message.strip()
@@ -46,13 +46,13 @@ def remove_cheermotes(raw_message):
 
 class ttsController:
     USER_SCOPE = [AuthScope.BITS_READ, AuthScope.CHANNEL_MODERATE, AuthScope.CHANNEL_READ_SUBSCRIPTIONS]
-    PREFIXES = prefixes = ["Cheer", "hryCheer", "BibleThump", "cheerwhal", "Corgo", "uni", "ShowLove", "Party",
-                           "SeemsGood",
-                           "Pride", "Kappa", "FrankerZ", "HeyGuys", "DansGame", "EleGiggle", "TriHard", "Kreygasm",
-                           "4Head",
-                           "SwiftRage", "NotLikeThis", "FailFish", "VoHiYo", "PJSalt", "MrDestructoid", "bday",
-                           "RIPCheer",
-                           "Shamrock"]
+    PREFIXES = prefixes = ["cheer", "hrycheer", "biblethump", "cheerwhal", "corgo", "uni", "showlove", "party",
+                           "seemsgood",
+                           "pride", "kappa", "frankerz", "heyguys", "dansgame", "elegiggle", "trihard", "kreygasm",
+                           "4head",
+                           "swiftrage", "notlikethis", "failfish", "vohiyo", "pjsalt", "mrdestructoid", "bday",
+                           "ripcheer",
+                           "shamrock"]
     URI = 'https://api.twitch.tv/helix'
     WS_ENDPOINT = 'wss://eventsub.wss.twitch.tv/ws' if not DEVMODE else 'ws://127.0.0.1:8080/ws'
     SUBS_ENDPOINT = 'https://api.twitch.tv/helix/eventsub/subscriptions' if not DEVMODE else 'http://127.0.0.1:8080/eventsub/subscriptions'
@@ -76,6 +76,7 @@ class ttsController:
         self.app_id = self.config['DEFAULT']['TwitchAppId']
         self.app_secret = self.config['DEFAULT']['TwitchAppSecret']
         self.headers = {}
+        self.subscriptions = []
         self.broadcaster = ''
         self.wsapp = None
 
@@ -91,6 +92,8 @@ class ttsController:
         self.tts_queue = queue.Queue()
         self.tts_text = []
 
+        self.gen_worker_thread = None
+        self.tts_worker_thread = None
         self.gen_thread = None
         self.tts_thread = None 
 
@@ -211,8 +214,16 @@ class ttsController:
         self.connected = True
         try:
             print('Starting worker thread.')
-            threading.Thread(target=self.tts_worker, daemon=True).start()
-            threading.Thread(target=self.gen_worker, daemon=True).start()
+            
+            if not self.tts_worker_thread:
+                self.tts_worker_thread = threading.Thread(target=self.tts_worker, daemon=True)
+            if self.tts_worker_thread and not self.tts_worker_thread.is_alive():
+                self.tts_worker_thread.start()
+
+            if not self.gen_worker_thread:
+                self.gen_worker_thread = threading.Thread(target=self.gen_worker, daemon=True)
+            if self.gen_worker_thread and not self.gen_worker_thread.is_alive():
+                self.gen_worker_thread.start()
         except:
             return
         print('Connected to Twitch')
@@ -223,20 +234,31 @@ class ttsController:
             # session variables
             session_id = msg['payload']['session']['id']
 
+            init_check = requests.get(ttsController.SUBS_ENDPOINT + '?status=enabled', headers=self.headers).json()
+            sub_check = [sub['type'] for sub in init_check['data']]
+            print(f'Previous subscriptions that are active: {sub_check}\nThese will be skipped')
+
+            for sub in self.subscriptions:
+                if sub not in sub_check:
+                    self.subscriptions.remove(sub)
+
             for sub_type in ttsController.SUBSCRIPTIONS:
-                sub_data = {
-                    'type': sub_type,
-                    'version': '1',
-                    'condition': {
-                        'broadcaster_user_id': self.broadcaster['data'][0]['id']
-                   },
-                    'transport': {
-                        'method': 'websocket',
-                        'session_id': session_id
+                if sub_type not in self.subscriptions:
+                    sub_data = {
+                        'type': sub_type,
+                        'version': '1',
+                        'condition': {
+                            'broadcaster_user_id': self.broadcaster['data'][0]['id']
+                       },
+                        'transport': {
+                            'method': 'websocket',
+                            'session_id': session_id
+                        }
                     }
-                }
-                response = requests.post(ttsController.SUBS_ENDPOINT, json=sub_data, headers=self.headers)
-                print(f'Subscription response: {response.json()}')
+
+                    response = requests.post(ttsController.SUBS_ENDPOINT, json=sub_data, headers=self.headers)
+                    self.subscriptions.append(sub_type);
+                    print(f'Subscription response: {response.json()}')
         elif msg['metadata']['message_type'] == 'notification':
             event = (msg['payload'])['event']
             message = {}
@@ -305,7 +327,7 @@ class ttsController:
                 if sub_message.removeprefix(sub_message.split()[0]).strip() != '': message_list.append(sub_message_object)
             else:
                 if len(message_list) != 0:
-                    message_list[sub_messages.index(sub_message) - 1]['message'] += ' #' + sub_message
+                    message_list[-1]['message'] += ' #' + sub_message
                 else:
                     sub_message_object = {
                         'voice': 'brian',
