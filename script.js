@@ -23,7 +23,7 @@ $(document).ready(() => {
     width: '100%',
     height: '20em',
     startCols: 500,
-    startRows: 200,
+    startRows: 20,
     rowHeaders: true,
     colHeaders: false,
     dragToScroll: true,
@@ -43,6 +43,7 @@ $(document).ready(() => {
     }
     text = text.replace(/-{2,}/, '-');
     text = text.replace(/\|{2,}/, '|');
+    text = text.replaceAll('|-|', '|');
     text = text.replaceAll(' ', '');
     
     text_box.innerHTML = `${base_text} ${slider.value} ${text.substring(0, text.length - 1)}`;
