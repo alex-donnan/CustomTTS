@@ -76,6 +76,7 @@ class ttsController:
         self.app_id = self.config['DEFAULT']['TwitchAppId']
         self.app_secret = self.config['DEFAULT']['TwitchAppSecret']
         self.headers = {}
+        self.subscriptions = []
         self.broadcaster = ''
         self.wsapp = None
 
@@ -91,6 +92,8 @@ class ttsController:
         self.tts_queue = queue.Queue()
         self.tts_text = []
 
+        self.gen_worker_thread = None
+        self.tts_worker_thread = None
         self.gen_thread = None
         self.tts_thread = None 
 
@@ -211,8 +214,16 @@ class ttsController:
         self.connected = True
         try:
             print('Starting worker thread.')
-            threading.Thread(target=self.tts_worker, daemon=True).start()
-            threading.Thread(target=self.gen_worker, daemon=True).start()
+            
+            if not self.tts_worker_thread:
+                self.tts_worker_thread = threading.Thread(target=self.tts_worker, daemon=True)
+            if self.tts_worker_thread and not self.tts_worker_thread.is_alive():
+                self.tts_worker_thread.start()
+
+            if not self.gen_worker_thread:
+                self.gen_worker_thread = threading.Thread(target=self.gen_worker, daemon=True)
+            if self.gen_worker_thread and not self.gen_worker_thread.is_alive():
+                self.gen_worker_thread.start()
         except:
             return
         print('Connected to Twitch')
@@ -223,20 +234,31 @@ class ttsController:
             # session variables
             session_id = msg['payload']['session']['id']
 
+            init_check = requests.get(ttsController.SUBS_ENDPOINT + '?status=enabled', headers=self.headers).json()
+            sub_check = [sub['type'] for sub in init_check['data']]
+            print(f'Previous subscriptions that are active: {sub_check}\nThese will be skipped')
+
+            for sub in self.subscriptions:
+                if sub not in sub_check:
+                    self.subscriptions.remove(sub)
+
             for sub_type in ttsController.SUBSCRIPTIONS:
-                sub_data = {
-                    'type': sub_type,
-                    'version': '1',
-                    'condition': {
-                        'broadcaster_user_id': self.broadcaster['data'][0]['id']
-                   },
-                    'transport': {
-                        'method': 'websocket',
-                        'session_id': session_id
+                if sub_type not in self.subscriptions:
+                    sub_data = {
+                        'type': sub_type,
+                        'version': '1',
+                        'condition': {
+                            'broadcaster_user_id': self.broadcaster['data'][0]['id']
+                       },
+                        'transport': {
+                            'method': 'websocket',
+                            'session_id': session_id
+                        }
                     }
-                }
-                response = requests.post(ttsController.SUBS_ENDPOINT, json=sub_data, headers=self.headers)
-                print(f'Subscription response: {response.json()}')
+
+                    response = requests.post(ttsController.SUBS_ENDPOINT, json=sub_data, headers=self.headers)
+                    self.subscriptions.append(sub_type);
+                    print(f'Subscription response: {response.json()}')
         elif msg['metadata']['message_type'] == 'notification':
             event = (msg['payload'])['event']
             message = {}

@@ -331,8 +331,10 @@ class ttsGui():
                         self.window['CONNECT'].update(disabled=True)
                         self.window['USERNAME'].update(disabled=True)
                         asyncio.run(self.app.run())
-                        self.socket = threading.Thread(target=self.app.wsapp.run_forever, daemon=True)
-                        self.socket.start()
+                        if not self.socket:
+                            self.socket = threading.Thread(target=self.app.wsapp.run_forever, daemon=True)
+                        if self.socket and not self.socket.is_alive():
+                            self.socket.start()
 
                         #safety
                         time.sleep(2)
