@@ -18,6 +18,9 @@ import string
 import threading
 import urllib.parse
 import websocket
+import pysynth_s as synth_t
+import pysynth_b as synth_b
+import mixfiles
 
 DEVMODE = False
 
@@ -61,6 +64,8 @@ class ttsController:
         'channel.subscription.gift',
         'channel.cheer'
     ]
+    NOTES = ['a','ab','b','bb','c','d','db','e','eb','f','g','gb','r']
+    BEAT = [0, 4, 2, -2, 1]
 
     def __init__(self):
         self.token = None
@@ -161,6 +166,50 @@ class ttsController:
             elif voice in self.sound_list.keys():
                 # Dear god forgive me for this sin
                 shutil.copy(os.path.join(self.asset_path, self.sound_list[voice]), self.output_path + output_file + os.path.splitext(self.sound_list[voice])[-1])
+            elif voice == 'lute':
+                # MUSIC
+                tempo = 140
+                tempo_check = message.split(' ')
+                if len(tempo_check) == 2:
+                    tempo = max(int(tempo_check[0]), 70)
+                    message = tempo_check[1]
+
+                lines = message.split('|')
+                last_file = self.generate_fname()
+                for id_line, line in enumerate(lines):
+                    cur_file = self.generate_fname()
+
+                    notation = []
+                    for beat in line.split('-'):
+                        note = beat.split('.')
+
+                        if ''.join(filter(str.isalpha, note[0])) in ttsController.NOTES and int(note[1]) in range(1, 5):
+                            length = ttsController.BEAT[int(note[1])]
+
+                            notation.append((note[0], length))
+                    notation = tuple(notation)
+
+                    if line != lines[-1] or len(lines) == 1:
+                        synth_t.make_wav(notation, fn=self.output_path + cur_file + '.wav', bpm=tempo)
+                    else:
+                        synth_b.make_wav(notation, fn=self.output_path + cur_file + '.wav', bpm=tempo)
+
+                    if id_line > 0:
+                        new_file = self.generate_fname()
+                        print(f'Mixing files {cur_file} and {last_file} into {new_file}')
+                        mixfiles.mix_files(self.output_path + cur_file + '.wav', \
+                                            self.output_path + last_file + '.wav', \
+                                            self.output_path + new_file + '.wav', 1)
+                        print(f'Mixed {new_file}')
+                        os.remove(self.output_path + cur_file + '.wav')
+                        os.remove(self.output_path + last_file + '.wav')
+                        last_file = new_file
+                    else:
+                        print(f'Tracking last file {cur_file}')
+                        last_file = cur_file
+
+                message_object['message'] = '-'
+                output_file = last_file
             else:
                 # Do Brian
                 url = 'https://api.streamelements.com/kappa/v2/speech?voice=Brian&text=' + urllib.parse.quote_plus(
@@ -192,7 +241,7 @@ class ttsController:
                 while getIsPlaying(self.currently_playing):
                     if self.clear_flag:
                         stopsound(self.currently_playing)
-                    sleep(0.5)
+                    sleep(0.1)
                 stopsound(self.currently_playing)
                 os.remove(file)
             except:
@@ -318,7 +367,7 @@ class ttsController:
                 message_list.append(sub_message_object)
 
             # Check your speakers
-            if key_check and (sub_message.split()[0].lower() in self.speaker_list.keys() or sub_message.split()[0].lower() == "brian"):
+            if key_check and (sub_message.split()[0].lower() in self.speaker_list.keys() or sub_message.split()[0].lower() in ('brian', 'lute')):
                 voice = sub_message.split()[0].lower()
                 sub_message_object = {
                     'voice': voice,
