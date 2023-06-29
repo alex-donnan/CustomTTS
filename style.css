@@ -9,11 +9,11 @@
 	border-width: 1px;
 	border-radius: 0.25em;
 	padding: 0.5em;
-	width: 12em;
+	width: 50%;
 	border-color: lightgrey;
 }
 #bpm_slider input {
-	width: 11em;
+	width: 100%;
 }
 
 #notes {

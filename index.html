@@ -61,6 +61,9 @@
 								<li>db3*.2 - d flat, octave 3, accented, 2 beats</li>
 							</ul>
 							<hr>
+							<p>Things to keep in mind:</p>
+							<p>Be mindful that a note with 1 beat meant to represent an 8th or 16th note <em>must</em> have a higher BPM to compensate (as high as 500).</p>
+							<p>Blank cells in the grid are okay but timing must be written per note. Blank cells are strictly if you'd like some spacing for ease of reading.</p>
 							<p>Adding a new line of notes will add another voice. The last voice is always the bass line, so be sure to write that last.</p>
 							<p>The character limit on Twitch is 500 characters, please be mindful of this! It could break the generator.</p>
 							<p>The box at the bottom will contain the message you have to use in chat. Make sure you Cheer first!</p>
@@ -75,12 +78,12 @@
 			<div id='generator'>
 				<div id='bpm_slider'>
 					<h5 id="bpm_value">BPM: </h5>
-					<input type="range" class="slider" min="70" max="250" id="bpm" name="bpm">
+					<input type="range" class="slider" min="70" max="500" id="bpm" name="bpm">
 				</div>
 				<hr>
 				<h5>Notation:</h5>
 				<div id='notes'>
-					<p>Start adding notes here. Blank notes are okay but timing must be written per note. Blank notes are strictly if you'd like some spacing for ease of reading.</p>
+					<p>Instructions in the ❔ above!</p>
 					<div id='datatable'>]
 					</div>
 				</div>

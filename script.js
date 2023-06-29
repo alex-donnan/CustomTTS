@@ -14,9 +14,9 @@ $(document).ready(() => {
   char_cnt.innerHTML = `Cheer Message: ${text_box.innerHTML.length} Characters`;
 
   slider.oninput = function() {
-    text = text.replace(/-{2,}/, '-');
-    text = text.replace(/\|{2,}/, '|');
+    text = text.replaceAll(/-{2,}/g, '-');
     text = text.replaceAll('|-|', '|');
+    text = text.replaceAll(/\|{2,}/g, '|');
     text = text.replaceAll(' ', '');
 
     output.innerHTML = `BPM: ${this.value}`;
