@@ -47,26 +47,31 @@
 							</button>
 						</div>
 						<div class='modal-body'>
-							<p>Select a BPM and add notes in the boxes below that will be played. A note can have 4 parts:</p>
+							<p>Select a BPM and add notes in the boxes below that will be played. A note can have 7 parts:</p>
 							<ul>
 								<li><em>Note:</em> a-b and r, lowercase. Another b means flat. An r is a rest.</li>
-								<li><em>Octave: Optional:</em> 1-5, defaults to 4.</li>
-								<li><em>Accent: Optional:</em> *, will try to accent that note.</li>
-								<li><em>Duration:</em> 1-4, duration in beats. Cannot be outside this range.</li>
+								<li><em>Octave: Optional:</em> 1-5 defaults to 4.</li>
+								<li><em>Accent: Optional:</em> * will try to accent that note.</li>
+								<li><em>Period:</em> . separates note information from beat information</li>
+								<li><em>Subbeat: Optional:</em> / denotes that this plays for a fraction of a beat (equal to 1 / Duration that follows).</li>
+								<li><em>Duration:</em> Duration in beats.</li>
+								<li><em>Dotted: Optional</em> *, duration is dotted (increased by 50%).</li>
 							</ul>
-							<p>The format for this will be <em>NoteOctaveAccent.Duration</em>, some examples:</p>
+							<p>The format for this will be <em>NoteOctaveAccent.SubbeatDurationDotted</em>, some examples:</p>
 							<ul>
 								<li>ab.1 - a flat, octave 4, 1 beat</li>
 								<li>d2.4 - d, octave 2, 4 beats</li>
 								<li>db3*.2 - d flat, octave 3, accented, 2 beats</li>
+								<li>bb*./2 - b flat, octave 4, accented, 1/2 beats</li>
+								<li>ab5*.4* - a flat, octave 5, accented, 6 beats</li>
+								<li>f./4* - f, octave 4, 3/8 beats</li>
 							</ul>
 							<hr>
 							<p>Things to keep in mind:</p>
-							<p>Be mindful that a note with 1 beat meant to represent an 8th or 16th note <em>must</em> have a higher BPM to compensate (as high as 500).</p>
+							<p>You probably don't need to go 500 BPM</p>
 							<p>Blank cells in the grid are okay but timing must be written per note. Blank cells are strictly if you'd like some spacing for ease of reading.</p>
-							<p>Adding a new line of notes will add another voice. The last voice is always the bass line, so be sure to write that last.</p>
-							<p>The character limit on Twitch is 500 characters, please be mindful of this! It could break the generator.</p>
-							<p>The box at the bottom will contain the message you have to use in chat. Make sure you Cheer first!</p>
+							<p>Adding a new line of notes will add another voice. The last voice is always the bass line.</p>
+							<p>The character limit on Twitch is 500 characters, please be mindful of this! It could break the generator and you still need to Cheer first!</p>
 						</div>
 					</div>
 				</div>

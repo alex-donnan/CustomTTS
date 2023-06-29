@@ -9,6 +9,7 @@ import emoji
 import glob
 import json
 import os
+import math
 import queue
 import random
 import re
@@ -185,10 +186,21 @@ class ttsController:
                         for beat in line.split('-'):
                             note = beat.split('.')
 
-                            if ''.join(filter(str.isalpha, note[0])) in ttsController.NOTES and int(note[1]) in range(1, 5):
-                                length = ttsController.BEAT[int(note[1])]
+                            if ''.join(filter(str.isalpha, note[0])) in ttsController.NOTES:
+                                length = 1
+                                str_note = note[1]
+                                if str_note[0] == '/':
+                                    str_note = str_note[1:]
+                                    if str_note[-1] == '*':
+                                        str_note = float(str_note[:-1]) / 1.5
+                                    length = 1 / float(str_note)
 
-                                notation.append((note[0], length))
+                                else:
+                                    if str_note[-1] == '*':
+                                        str_note = float(str_note[:-1]) * 1.5
+                                    length = float(str_note)
+
+                                notation.append((note[0], 4. / length))
                         notation = tuple(notation)
 
                         if line != lines[-1] or len(lines) == 1:
