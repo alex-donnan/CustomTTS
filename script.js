@@ -41,7 +41,7 @@ $(document).ready(() => {
       let row_text = '';
       for (let y = 0; y < 200; y++) {
         let el = hot.getDataAtCell(x, y);
-        if (el != null) {
+        if (el != null && el.trim() != '') {
           text += `${el}-`;
           row_text += `-`;
         }
