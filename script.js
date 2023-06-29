@@ -49,9 +49,9 @@ $(document).ready(() => {
       if (x < 499 && row_text != '') text += '|';
     }
 
-    text = text.replace(/-{2,}/, '-');
+    text = text.replaceAll(/-{2,}/, '-');
     text = text.replaceAll('|-|', '|');
-    text = text.replace(/\|{2,}/, '|');
+    text = text.replaceAll(/\|{2,}/, '|');
     text = text.replaceAll(' ', '');
     
     text_box.innerHTML = `${base_text} ${slider.value} ${text.substring(0, text.length - 1)}`;
