@@ -6,6 +6,7 @@ $(document).ready(() => {
   const char_cnt = document.getElementById('char_count');
   const base_text = '#lute';
   var text = '';
+  var error = '';
 
   const container = document.getElementById('datatable');
 
@@ -37,11 +38,15 @@ $(document).ready(() => {
 
   hot.addHook('afterChange', (changes) => {
     text = '';
+    error = '';
     for (let x = 0; x < 500; x++) {
       let row_text = '';
       for (let y = 0; y < 200; y++) {
         let el = hot.getDataAtCell(x, y);
         if (el != null && el.trim() != '') {
+          if (!el.match(/^[a-g][b]?\*?\.[1-4]$/)) {
+            error = `Improper note value at ${y},${x}: ${el}`;
+          }
           text += `${el}-`;
           row_text += `-`;
         }
@@ -56,5 +61,6 @@ $(document).ready(() => {
     
     text_box.innerHTML = `${base_text} ${slider.value} ${text.substring(0, text.length - 1)}`;
     char_cnt.innerHTML = `Cheer Message: ${text_box.innerHTML.length} Characters`;
+    error_box.innerHTML = `Errors: ${error}`;
   });
 });
