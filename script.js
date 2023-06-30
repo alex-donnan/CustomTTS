@@ -44,7 +44,7 @@ $(document).ready(() => {
       for (let y = 0; y < 200; y++) {
         let el = hot.getDataAtCell(x, y);
         if (el != null && el.trim() != '') {
-          if (!el.match(/^[a-g][b]?[0-9]?\*?\.\/?[0-9]+\*?$/)) {
+          if (!el.match(/^([a-g]b?|r)[0-9]?\*?\.\/?[0-9]+\*?$/)) {
             error = `Improper note value at ${y},${x}: ${el}`;
           }
           text += `${el}-`;
