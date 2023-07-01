@@ -1,6 +1,7 @@
 $(document).ready(() => {
   const slider = document.getElementById('bpm');
   const output = document.getElementById('bpm_value');
+  const test = document.getElementById('test_send');
 
   const text_box = document.getElementById('text');
   const char_cnt = document.getElementById('char_count');
@@ -17,6 +18,7 @@ $(document).ready(() => {
   slider.oninput = function() {
     text = text.replaceAll(/-{2,}/g, '-');
     text = text.replaceAll('|-|', '|');
+    text = text.replaceAll('-|', '|');
     text = text.replaceAll(/\|{2,}/g, '|');
     text = text.replaceAll(' ', '');
 
@@ -44,7 +46,7 @@ $(document).ready(() => {
       for (let y = 0; y < 200; y++) {
         let el = hot.getDataAtCell(x, y);
         if (el != null && el.trim() != '') {
-          if (!el.match(/^([a-g]b?|r)[1-9]?\*?\.\/?[1-9]+\*?$/)) {
+          if (!el.match(/^([a-g]b?[1-9]?\*?|r)\.\/?[1-9]+\*?$/)) {
             error = `Improper note value at ${y},${x}: ${el}`;
           }
           text += `${el}-`;
@@ -56,6 +58,7 @@ $(document).ready(() => {
 
     text = text.replaceAll(/-{2,}/g, '-');
     text = text.replaceAll('|-|', '|');
+    text = text.replaceAll('-|', '|');
     text = text.replaceAll(/\|{2,}/g, '|');
     text = text.replaceAll(' ', '');
     
