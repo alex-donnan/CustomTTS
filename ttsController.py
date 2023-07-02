@@ -183,37 +183,46 @@ class ttsController:
                         cur_file = self.generate_fname()
 
                         notation = []
+                        length = 1
                         for beat in line.split('-'):
-                            note = beat.split('.')
+                            note = beat.split('.', 1)
 
                             if ''.join(filter(str.isalpha, note[0])) in ttsController.NOTES:
                                 length = 1
-                                str_note = note[1]
-                                if str_note[0] == '/':
-                                    str_note = str_note[1:]
-                                    if str_note[-1] == '*':
-                                        str_note = float(str_note[:-1]) / 1.5
-                                    length = 1 / float(str_note)
+                                str_note = note[-1]
+                                if note[0] != note[-1]:
+                                    if str_note[0] == '/':
+                                        str_note = str_note[1:]
+                                        if str_note[-1] == '*':
+                                            str_note = float(str_note[:-1]) / 1.5
+                                        length = 1 / float(str_note)
 
+                                    else:
+                                        if str_note[-1] == '*':
+                                            str_note = float(str_note[:-1]) * 1.5
+                                        length = float(str_note)
                                 else:
-                                    if str_note[-1] == '*':
-                                        str_note = float(str_note[:-1]) * 1.5
-                                    length = float(str_note)
+                                    length *= 4.
 
                                 notation.append((note[0], 4. / length))
+                                print(notation)
                         notation = tuple(notation)
 
-                        if line != lines[-1] or len(lines) == 1:
+                        if line == lines[-1] or len(lines) == 1:
                             synth_t.make_wav(notation, fn=self.output_path + cur_file + '.wav', bpm=tempo)
                         else:
                             synth_b.make_wav(notation, fn=self.output_path + cur_file + '.wav', bpm=tempo)
 
+                        amix = 0.5
+                        bmix = 0.5
+                        if id_line == 2: bmix = 1.
+                        if id_line >= 1 and line == lines[-1]: amix = 0.25
                         if id_line > 0:
                             new_file = self.generate_fname()
                             print(f'Mixing files {cur_file} and {last_file} into {new_file}')
                             mixfiles.mix_files(self.output_path + cur_file + '.wav', \
                                                 self.output_path + last_file + '.wav', \
-                                                self.output_path + new_file + '.wav', 1)
+                                                self.output_path + new_file + '.wav', amix, bmix, 1)
                             print(f'Mixed {new_file}')
                             os.remove(self.output_path + cur_file + '.wav')
                             os.remove(self.output_path + last_file + '.wav')
