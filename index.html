@@ -9,9 +9,10 @@
 		<!-- jQuery and Bootstrap Bundle (includes Popper) -->
 		<link rel='stylesheet' href='style.css'>
 	    <link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css' integrity='sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T' crossorigin='anonymous'>
-		<script src='https://code.jquery.com/jquery-3.3.1.slim.min.js' integrity='sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo' crossorigin='anonymous'></script>
+		<script src='https://code.jquery.com/jquery-3.7.0.min.js' crossorigin='anonymous'></script>
 		<script src='https://cdn.jsdelivr.net/npm/popper.js@1.14.7/dist/umd/popper.min.js' integrity='sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1' crossorigin='anonymous'></script>
 		<script src='https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/js/bootstrap.min.js' integrity='sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM' crossorigin='anonymous'></script>
+		<script src='https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js' crossorigin='anonymous'></script>
 		<script src="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.js"></script>
 		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.css" type="text/css" />
 		<script src='script.js'></script>
@@ -47,26 +48,35 @@
 							</button>
 						</div>
 						<div class='modal-body'>
-							<p>Select a BPM and add notes in the boxes below that will be played. A note can have 4 parts:</p>
+							<p>Select a BPM and add notes in the boxes below that will be played. A note can have 7 parts:</p>
 							<ul>
 								<li><em>Note:</em> a-b and r, lowercase. Another b means flat. An r is a rest.</li>
-								<li><em>Octave: Optional:</em> 1-5, defaults to 4.</li>
-								<li><em>Accent: Optional:</em> *, will try to accent that note.</li>
-								<li><em>Duration:</em> 1-4, duration in beats. Cannot be outside this range.</li>
+								<li><em>Octave: Optional:</em> 1-5 defaults to 4.</li>
+								<li><em>Accent: Optional:</em> * will try to accent that note.</li>
 							</ul>
-							<p>The format for this will be <em>NoteOctaveAccent.Duration</em>, some examples:</p>
+							Optional Duration: If used there are required elements in it. Defaults to 1 beat.
+							<ul>
+								<li><em>Period:</em> . separates note information from beat information</li>
+								<li><em>Subbeat: Optional:</em> / denotes that this plays for a fraction of a beat (equal to 1 / Duration that follows).</li>
+								<li><em>Duration: </em> Duration in beats.</li>
+								<li><em>Dotted: Optional</em> *, duration is dotted (increased by 50%).</li>
+							</ul>
+							<p>The format for this will be <em>NoteOctaveAccent.SubbeatDurationDotted</em>, some examples:</p>
 							<ul>
 								<li>ab.1 - a flat, octave 4, 1 beat</li>
 								<li>d2.4 - d, octave 2, 4 beats</li>
-								<li>db3*.2 - d flat, octave 3, accented, 2 beats</li>
+								<li>db3* - d flat, octave 3, accented, same beat as last note</li>
+								<li>bb*./2 - b flat, octave 4, accented, 1/2 beats</li>
+								<li>ab5*.4* - a flat, octave 5, accented, 6 beats</li>
+								<li>f./4* - f, octave 4, 3/8 beats</li>
 							</ul>
 							<hr>
 							<p>Things to keep in mind:</p>
-							<p>Be mindful that a note with 1 beat meant to represent an 8th or 16th note <em>must</em> have a higher BPM to compensate (as high as 500).</p>
+							<p>You probably don't need to go 500 BPM</p>
+							<p>Look for ways to reduce character count using repeating beat notation.</p>
 							<p>Blank cells in the grid are okay but timing must be written per note. Blank cells are strictly if you'd like some spacing for ease of reading.</p>
-							<p>Adding a new line of notes will add another voice. The last voice is always the bass line, so be sure to write that last.</p>
-							<p>The character limit on Twitch is 500 characters, please be mindful of this! It could break the generator.</p>
-							<p>The box at the bottom will contain the message you have to use in chat. Make sure you Cheer first!</p>
+							<p>Adding a new line of notes will add another voice. The last voice is always the bass line.</p>
+							<p>The character limit on Twitch is 500 characters, please be mindful of this! It could break the generator and you still need to Cheer first!</p>
 						</div>
 					</div>
 				</div>
@@ -78,7 +88,7 @@
 			<div id='generator'>
 				<div id='bpm_slider'>
 					<h5 id="bpm_value">BPM: </h5>
-					<input type="range" class="slider" min="70" max="500" id="bpm" name="bpm">
+					<input type="range" class="slider" min="70" value="120" max="500" id="bpm" name="bpm">
 				</div>
 				<hr>
 				<h5>Notation:</h5>
@@ -87,6 +97,7 @@
 					<div id='datatable'></div>
 					<br>
 					<p id='error_box'>Errors:</p>
+					<button id='test_play'>Test Song</button>
 				</div>
 				<hr>
 				<h5 id='char_count'>Cheer Message:  Characters</h5>
