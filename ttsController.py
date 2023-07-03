@@ -178,19 +178,18 @@ class ttsController:
                         message = tempo_check[1]
 
                     lines = message.split('|')
-                    last_file = self.generate_fname()
+                    line_lengths = []
+                    full_notation = []
                     for id_line, line in enumerate(lines):
-                        cur_file = self.generate_fname()
-
                         notation = []
                         length = 1
+                        line_length = 0.
                         for beat in line.split('-'):
                             note = beat.split('.', 1)
 
                             if ''.join(filter(str.isalpha, note[0])) in ttsController.NOTES:
-                                length = 1
                                 str_note = note[-1]
-                                if note[0] != note[-1]:
+                                if len(note) != 1:
                                     if str_note[0] == '/':
                                         str_note = str_note[1:]
                                         if str_note[-1] == '*':
@@ -201,17 +200,26 @@ class ttsController:
                                         if str_note[-1] == '*':
                                             str_note = float(str_note[:-1]) * 1.5
                                         length = float(str_note)
-                                else:
-                                    length *= 4.
-
+                                line_length += length
                                 notation.append((note[0], 4. / length))
-                                print(notation)
-                        notation = tuple(notation)
 
-                        if line == lines[-1] or len(lines) == 1:
-                            synth_t.make_wav(notation, fn=self.output_path + cur_file + '.wav', bpm=tempo)
+                        line_lengths.append(line_length)
+                        full_notation.append(notation)
+
+                    max_length = max(line_lengths)
+                    last_file = self.generate_fname()
+                    for id_line, line in enumerate(full_notation):
+                        cur_file = self.generate_fname()
+
+                        if line_lengths[id_line] != max_length:
+                            print(f'Line too short, adding rest to match {line_lengths[id_line]} to {max_length}')
+                            line.append(('r', float(4. / (max_length - line_lengths[id_line]))))
+                            print(tuple(line))
+
+                        if line != lines[-1] or len(lines) == 1:
+                            synth_t.make_wav(tuple(line), fn=self.output_path + cur_file + '.wav', bpm=tempo)
                         else:
-                            synth_b.make_wav(notation, fn=self.output_path + cur_file + '.wav', bpm=tempo)
+                            synth_b.make_wav(tuple(line), fn=self.output_path + cur_file + '.wav', bpm=tempo)
 
                         amix = 0.5
                         bmix = 0.5
