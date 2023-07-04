@@ -49,35 +49,57 @@ $(document).ready(() => {
             let bps = 60 / slider.value;
             let time = 0;
             let length = 1;
+            let repeat = false;
+            let repeat_list = [];
 
-            beats.forEach((beat) => {
-              let note = beat.split('.');
-              note[0] = note[0].replace('*', '');
-              if (isNaN(note[0].slice(-1).valueOf())) {
-                note[0] = note[0] + '4'
-              }
-
-              if (note.length > 1) {
-                let dotted = note[1].includes('*');
-                if (note[1].includes('/')) {
-                  length = note[1].replace('/', '').replace('*', '').valueOf();
-                  length = 1 / length;
-                } else {
-                  length = note[1].replace('/', '').replace('*', '').valueOf();
+            for (let index = 0; index < beats.length; index++) {
+              let beat = beats[index];
+              console.log(`${beat} at ${index}`);
+              console.log(beats.toString());
+              if (beat == ':') {
+                if (repeat) {
+                  repeat_list.forEach((rep, rep_index) => {
+                    console.log(`Splicing @ ${index + 1 + rep_index} value ${rep}`);
+                    beats.splice(index + 1 + rep_index, 0, rep);
+                  });
                 }
-                if (dotted) length *= 1.5;
-              }
 
-              if (!note[0].includes('r')) {
-                notation.push({
-                  "note": note[0],
-                  "length": length * bps * 0.6,
-                  "time": time
-                });
+                console.log(beats);
+                repeat = !repeat;
+                repeat_list = [];
+              } else {
+                if (repeat) {
+                  repeat_list.push(beat);
+                }
+
+                let note = beat.split('.');
+                note[0] = note[0].replace('*', '');
+                if (isNaN(note[0].slice(-1).valueOf())) {
+                  note[0] = note[0] + '4'
+                }
+
+                if (note.length > 1) {
+                  let dotted = note[1].includes('*');
+                  if (note[1].includes('/')) {
+                    length = note[1].replace('/', '').replace('*', '').valueOf();
+                    length = 1 / length;
+                  } else {
+                    length = note[1].replace('/', '').replace('*', '').valueOf();
+                  }
+                  if (dotted) length *= 1.5;
+                }
+
+                if (!note[0].includes('r')) {
+                  notation.push({
+                    "note": note[0],
+                    "length": length * bps * 0.6,
+                    "time": time
+                  });
+                }
+                console.log(`Added ${note[0]} for ${length * bps} at ${time}`);
+                time += length * bps;
               }
-              console.log(`Added ${note[0]} for ${length * bps} at ${time}`);
-              time += length * bps;
-            });
+            };
 
             end = Math.max(time, end);
           });
@@ -128,7 +150,7 @@ $(document).ready(() => {
       for (let y = 0; y < 200; y++) {
         let el = hot.getDataAtCell(x, y);
         if (el != null && el.trim() != '') {
-          if (!el.match(/^([a-g]b?[1-9]?\*?|r)(\.\/?[1-8]+\*?)?$/)) {
+          if (!el.match(/^(:|([a-g]b?[1-9]?\*?|r)(\.\/?[1-8]+\*?)?)$/)) {
             error = `Improper note value at ${y},${x}: ${el}`;
           }
           text += `${el}-`;

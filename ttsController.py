@@ -181,27 +181,40 @@ class ttsController:
                     line_lengths = []
                     full_notation = []
                     for id_line, line in enumerate(lines):
+                        beats = line.split('-')
                         notation = []
                         length = 1
                         line_length = 0.
-                        for beat in line.split('-'):
-                            note = beat.split('.', 1)
+                        repeat = False
+                        repeat_list = []
+                        for id_beat, beat in enumerate(beats):
+                            if beat == ':':
+                                if repeat:
+                                    for id_rep, rep in enumerate(repeat_list):
+                                        beats.insert(id_beat + 1 + id_rep, rep)
+                                    print(f'Repetition: ' + str(repeat_list))
+                                repeat = not repeat
+                                repeat_list = []
+                            else:
+                                if repeat:
+                                    repeat_list.append(beat)
+                                note = beat.split('.', 1)
 
-                            if ''.join(filter(str.isalpha, note[0])) in ttsController.NOTES:
-                                str_note = note[-1]
-                                if len(note) != 1:
-                                    if str_note[0] == '/':
-                                        str_note = str_note[1:]
-                                        if str_note[-1] == '*':
-                                            str_note = float(str_note[:-1]) / 1.5
-                                        length = 1 / float(str_note)
+                                if ''.join(filter(str.isalpha, note[0])) in ttsController.NOTES:
+                                    str_note = note[-1]
+                                    if len(note) != 1:
+                                        if str_note[0] == '/':
+                                            str_note = str_note[1:]
+                                            if str_note[-1] == '*':
+                                                str_note = float(str_note[:-1]) / 1.5
+                                            length = 1 / float(str_note)
 
-                                    else:
-                                        if str_note[-1] == '*':
-                                            str_note = float(str_note[:-1]) * 1.5
-                                        length = float(str_note)
-                                line_length += length
-                                notation.append((note[0], 4. / length))
+                                        else:
+                                            if str_note[-1] == '*':
+                                                str_note = float(str_note[:-1]) * 1.5
+                                            length = float(str_note)
+                                    line_length += length
+                                    notation.append((note[0], 4. / length))
 
                         line_lengths.append(line_length)
                         full_notation.append(notation)
@@ -216,7 +229,7 @@ class ttsController:
                             line.append(('r', float(4. / (max_length - line_lengths[id_line]))))
                             print(tuple(line))
 
-                        if line != lines[-1] or len(lines) == 1:
+                        if line != full_notation[-1] or len(full_notation) == 1:
                             synth_t.make_wav(tuple(line), fn=self.output_path + cur_file + '.wav', bpm=tempo)
                         else:
                             synth_b.make_wav(tuple(line), fn=self.output_path + cur_file + '.wav', bpm=tempo)
@@ -224,7 +237,7 @@ class ttsController:
                         amix = 0.5
                         bmix = 0.5
                         if id_line == 2: bmix = 1.
-                        if id_line >= 1 and line == lines[-1]: amix = 0.25
+                        if id_line >= 1 and line == full_notation[-1]: amix = 0.4
                         if id_line > 0:
                             new_file = self.generate_fname()
                             print(f'Mixing files {cur_file} and {last_file} into {new_file}')
