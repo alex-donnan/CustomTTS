@@ -4,6 +4,9 @@ $(document).ready(() => {
   synth.volume.value = -12;
 
   //Rest of it
+  const import_text = document.getElementById('import_text');
+  const import_butt = document.getElementById('import_button');
+
   const slider = document.getElementById('bpm');
   const output = document.getElementById('bpm_value');
   const test_play = document.getElementById('test_play');
@@ -11,6 +14,7 @@ $(document).ready(() => {
   const text_box = document.getElementById('text');
   const char_cnt = document.getElementById('char_count');
   const base_text = '#lute';
+
   var text = '';
   var error = '';
   var song = null;
@@ -18,11 +22,81 @@ $(document).ready(() => {
 
   const container = document.getElementById('datatable');
 
+  import_butt.onclick = () => {
+    if (import_text.value != '') {
+      let import_val = import_text.value.slice(6).split(' ');
+      slider.value = import_val[0];
+      output.innerHTML = `BPM: ${slider.value}`;
+      let import_arr = import_val[1].split('|');
+      let data = [];
+      let len_dict = {};
+      let low_tempo = '1';
+      let low_tempo_val = 1;
+
+      import_arr.forEach((line) => {
+        let line_arr = line.split('-');
+
+        line_arr.forEach((el, ind) => {
+          let note = el.split('.');
+          let length = 1
+
+          if (note.length > 1) {
+            let dotted = note[1].includes('*');
+            if (note[1].includes('/')) {
+              length = note[1].replace('/', '').replace('*', '').valueOf();
+              length = 1 / length;
+            } else {
+              length = note[1].replace('/', '').replace('*', '').valueOf();
+            }
+            if (dotted) length *= 1.5;
+
+            if (length < low_tempo_val) {
+              low_tempo_val = length;
+              low_tempo = note[1];
+            }
+
+            if (len_dict[note[1]] == undefined) {
+              len_dict[note[1]] = length;
+            }
+          }
+        });
+      });
+
+      import_arr.forEach((line) => {
+        let line_arr = line.split('-');
+        let last_tempo = '1';
+        let line_new = [];
+
+        line_arr.forEach((el, ind) => {
+          let note = el.split('.');
+          let new_note = el;
+
+          if (note.length > 1) {
+            if (note[1] != last_tempo) {
+              last_tempo = note[1];
+            } else {
+              new_note = note[0];
+            }
+          }
+
+          line_new.push(new_note);
+          for (let i = 1; i < Math.ceil(len_dict[note[1]] / low_tempo_val); i++) {
+            line_new.push('');
+          }
+        });
+        data.push(line_new);
+      });
+      hot.clear();
+      hot.populateFromArray(0, 0, data);
+      import_text.value = '';
+    }
+  }
+
   output.innerHTML = `BPM: ${slider.value}`;
   text_box.innerHTML = `${base_text} ${slider.value} ${text}`;
   char_cnt.innerHTML = `Cheer Message: ${text_box.innerHTML.length} Characters`;
 
-  slider.oninput = function() {
+  slider.oninput = () => {
     text = text.replaceAll(/-{2,}/g, '-');
     text = text.replaceAll('|-|', '|');
     text = text.replaceAll('-|', '|');
@@ -149,7 +223,7 @@ $(document).ready(() => {
       let row_text = '';
       for (let y = 0; y < 200; y++) {
         let el = hot.getDataAtCell(x, y);
-        if (el != null && el.trim() != '') {
+        if (el != null && el != undefined && el.trim() != '') {
           if (!el.match(/^(:|([a-g]b?[1-9]?\*?|r)(\.\/?[1-8]+\*?)?)$/)) {
             error = `Improper note value at ${y},${x}: ${el}`;
           }
