@@ -24,7 +24,7 @@ $(document).ready(() => {
 
   import_butt.onclick = () => {
     if (import_text.value != '') {
-      let import_val = import_text.value.slice(6).split(' ');
+      let import_val = import_text.value.replace('#lute', '').trim().split(' ');
       slider.value = import_val[0];
       output.innerHTML = `BPM: ${slider.value}`;
       let import_arr = import_val[1].split('|');
