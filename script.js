@@ -22,10 +22,30 @@ $(document).ready(() => {
 
   const container = document.getElementById('datatable');
 
+  output.innerHTML = `BPM: ${slider.value}`;
+  text_box.innerHTML = `${base_text} ${slider.value} ${text}`;
+  char_cnt.innerHTML = `Cheer Message: ${text_box.innerHTML.length} Characters`;
+
+  slider.oninput = () => {
+    text = text.replaceAll(/-{2,}/g, '-');
+    text = text.replaceAll('|-|', '|');
+    text = text.replaceAll('-|', '|');
+    text = text.replaceAll(/\|{2,}/g, '|');
+    text = text.replaceAll(' ', '');
+
+    output.innerHTML = `BPM: ${slider.value}`;
+    text_box.innerHTML = `${base_text} ${slider.value} ${text.substring(0, text.length - 1)}`;
+    char_cnt.innerHTML = `Cheer Message: ${text_box.innerHTML.length} Characters`;
+  }
+
   import_butt.onclick = () => {
     if (import_text.value != '') {
       let import_val = import_text.value.replace('#lute', '').trim().split(' ');
-      slider.value = import_val[0];
+      if (import_val.length == 1) {
+        import_val[1] = import_val[0];
+        import_val[0] = 120;
+      }
+      slider.value = import_val[0].valueOf();
       output.innerHTML = `BPM: ${slider.value}`;
       let import_arr = import_val[1].split('|');
       let data = [];
@@ -90,22 +110,6 @@ $(document).ready(() => {
       hot.populateFromArray(0, 0, data);
       import_text.value = '';
     }
-  }
-
-  output.innerHTML = `BPM: ${slider.value}`;
-  text_box.innerHTML = `${base_text} ${slider.value} ${text}`;
-  char_cnt.innerHTML = `Cheer Message: ${text_box.innerHTML.length} Characters`;
-
-  slider.oninput = () => {
-    text = text.replaceAll(/-{2,}/g, '-');
-    text = text.replaceAll('|-|', '|');
-    text = text.replaceAll('-|', '|');
-    text = text.replaceAll(/\|{2,}/g, '|');
-    text = text.replaceAll(' ', '');
-
-    output.innerHTML = `BPM: ${this.value}`;
-    text_box.innerHTML = `${base_text} ${this.value} ${text.substring(0, text.length - 1)}`;
-    char_cnt.innerHTML = `Cheer Message: ${text_box.innerHTML.length} Characters`;
   }
 
   test_play.onclick = async () => {
