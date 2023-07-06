@@ -127,8 +127,10 @@ $(document).ready(() => {
           }
 
           line_new.push(new_note);
-          for (let i = 1; i < Math.ceil(len_dict[last_tempo] / low_tempo_val); i++) {
-            line_new.push('');
+          if (note[0] != ':') {
+            for (let i = 1; i < Math.ceil(len_dict[last_tempo] / low_tempo_val); i++) {
+              line_new.push('');
+            }
           }
         });
         data.push(line_new);
