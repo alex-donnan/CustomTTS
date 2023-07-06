@@ -120,7 +120,7 @@ $(document).ready(() => {
           } else {
             if (note[0] == ':') {
               repeat = true;
-            } else if (note[0].match(/^([a-g]b?[1-9]?\*?|r)?$/) && repeat) {
+            } else if (note[0].match(/^([a-g]b?[1-8]?\*?|r)?$/) && repeat) {
               new_note = `${el}.${last_tempo}`;
               repeat = false;
             }
@@ -263,7 +263,7 @@ $(document).ready(() => {
       for (let y = 0; y < 500; y++) {
         let el = hot.getDataAtCell(x, y);
         if (el != null && el != undefined && el.trim() != '') {
-          if (!el.match(/^(:|([a-g]b?[1-9]?\*?|r)(\.\/?[1-8]+\*?)?)$/)) {
+          if (!el.match(/^(:|([a-g]b?[1-8]?\*?|r)(\.\/?[1-9]\d*\*?)?)$/)) {
             error = `Improper note value at ${hot.getColHeader(y)},${x+1}: ${el}`;
             repeat = false;
           } else if (el == ':') {
