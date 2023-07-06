@@ -243,7 +243,7 @@ $(document).ready(() => {
     startCols: 500,
     startRows: 20,
     rowHeaders: true,
-    colHeaders: false,
+    colHeaders: true,
     dragToScroll: true,
     licenseKey: 'non-commercial-and-evaluation',
   });
@@ -262,13 +262,13 @@ $(document).ready(() => {
         let el = hot.getDataAtCell(x, y);
         if (el != null && el != undefined && el.trim() != '') {
           if (!el.match(/^(:|([a-g]b?[1-9]?\*?|r)(\.\/?[1-8]+\*?)?)$/)) {
-            error = `Improper note value at ${y},${x}: ${el}`;
+            error = `Improper note value at ${hot.getColHeader(y)},${x+1}: ${el}`;
             repeat = false;
           } else if (el == ':') {
             repeat = true;
           } else {
             if (repeat && el.split('.').length != 2) {
-              warn = `Beat value missing at ${y},${x}: ${el}`;
+              warn = `Beat value missing at ${hot.getColHeader(y)},${x+1}: ${el}`;
             }
             repeat = false;
           }
