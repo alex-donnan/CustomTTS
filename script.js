@@ -1,6 +1,13 @@
 $(document).ready(() => {
   //Synthesizer
-  const synth = new Tone.PolySynth().toDestination();
+  const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+  synth.set({
+    envelope: {
+      attack: 0.,
+      decay: 0.1,
+      sustain: 0.25
+    }
+  });
   synth.volume.value = -12;
 
   //Rest of it
@@ -93,6 +100,7 @@ $(document).ready(() => {
         let line_arr = line.split('-');
         let last_tempo = '1';
         let line_new = [];
+        let repeat = false;
 
         line_arr.forEach((el, ind) => {
           let note = el.split('.');
@@ -102,12 +110,24 @@ $(document).ready(() => {
             if (note[1] != last_tempo) {
               last_tempo = note[1];
             } else {
-              new_note = note[0];
+              if (repeat) {
+                last_tempo = note[1];
+              } else {
+                new_note = note[0];
+              }
+            }
+            repeat = false;
+          } else {
+            if (note[0] == ':') {
+              repeat = true;
+            } else if (note[0].match(/^([a-g]b?[1-9]?\*?|r)?$/) && repeat) {
+              new_note = `${el}.${last_tempo}`;
+              repeat = false;
             }
           }
 
           line_new.push(new_note);
-          for (let i = 1; i < Math.ceil(len_dict[note[1]] / low_tempo_val); i++) {
+          for (let i = 1; i < Math.ceil(len_dict[last_tempo] / low_tempo_val); i++) {
             line_new.push('');
           }
         });
@@ -232,15 +252,25 @@ $(document).ready(() => {
     console.log('updating text');
     text = '';
     let error = '';
+    let warn = '';
     let max_w = 0;
     let max_h = 0;
     for (let x = 0; x < 20; x++) {
       let row_text = '';
+      let repeat = false;
       for (let y = 0; y < 500; y++) {
         let el = hot.getDataAtCell(x, y);
         if (el != null && el != undefined && el.trim() != '') {
           if (!el.match(/^(:|([a-g]b?[1-9]?\*?|r)(\.\/?[1-8]+\*?)?)$/)) {
             error = `Improper note value at ${y},${x}: ${el}`;
+            repeat = false;
+          } else if (el == ':') {
+            repeat = true;
+          } else {
+            if (repeat && el.split('.').length != 2) {
+              warn = `Beat value missing at ${y},${x}: ${el}`;
+            }
+            repeat = false;
           }
           text += `${el}-`;
           row_text += `-`;
@@ -260,7 +290,7 @@ $(document).ready(() => {
     output.innerHTML = `BPM: ${slider.value}`;
     text_box.innerHTML = `${base_text} ${slider.value} ${text.substring(0, text.length - 1)}`;
     char_cnt.innerHTML = `Cheer Message: ${text_box.innerHTML.length} Characters`;
-    error_box.innerHTML = `Errors: ${error}`;
+    error_box.innerHTML = `Errors: ${error}<br>Warnings: ${warn}`;
 
     save_data = {
       tempo: slider.value,
