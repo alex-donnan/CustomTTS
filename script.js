@@ -74,7 +74,7 @@ $(document).ready(() => {
           let note = el.split('.');
           let length = 1
 
-          if (note.length > 1) {
+          if (note.length > 1 && note[1].trim() != '') {
             let dotted = note[1].includes('*');
             if (note[1].includes('/')) {
               length = note[1].replace('/', '').replace('*', '').valueOf();
@@ -106,7 +106,7 @@ $(document).ready(() => {
           let note = el.split('.');
           let new_note = el;
 
-          if (note.length > 1) {
+          if (note.length > 1 && note[1].trim() != '') {
             if (note[1] != last_tempo) {
               last_tempo = note[1];
             } else {
@@ -186,7 +186,7 @@ $(document).ready(() => {
                   note[0] = note[0] + '4'
                 }
 
-                if (note.length > 1) {
+                if (note.length > 1 && note[1].trim() != '') {
                   let dotted = note[1].includes('*');
                   if (note[1].includes('/')) {
                     length = note[1].replace('/', '').replace('*', '').valueOf();
