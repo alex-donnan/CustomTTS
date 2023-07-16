@@ -4,6 +4,7 @@ from TTS.utils.synthesizer import Synthesizer
 from twitchAPI.oauth import UserAuthenticator, refresh_access_token
 from twitchAPI.twitch import Twitch
 from twitchAPI.types import AuthScope
+import asyncio
 import configparser
 import emoji
 import glob
@@ -22,8 +23,10 @@ import websocket
 import pysynth_s as synth_t
 import pysynth_b as synth_b
 import mixfiles
+import winsdk.windows.media.control as wmc
 
 DEVMODE = False
+
 
 def replace_emoji(message):
     message = re.sub(':[\\w_]+:', lambda m: re.sub('[:_]', ' ', m.group()), emoji.demojize(message))
@@ -46,6 +49,12 @@ def remove_cheermotes(raw_message):
         message += word + " "
     message.strip()
     return message
+
+
+async def get_media_session():
+    sessions = await wmc.GlobalSystemMediaTransportControlsSessionManager.request_async()
+    session = sessions.get_current_session()
+    return session
 
 
 class ttsController:
@@ -256,8 +265,14 @@ class ttsController:
     def play_wav(self, message_list):
         soundplay("assets/cheer.wav", block=True)
         sleep(0.25)
-
+        media_paused = False
+        session = None
         for message_object in message_list:
+            if message_object['voice'] == "lute":
+                session = asyncio.run(get_media_session())
+                media_paused = session.get_playback_info().playback_status.value == 4
+                session.try_pause_async()
+
             file = None
             for f in os.listdir(self.output_path):
                 if message_object['filename'] == f[0:6]: file = self.output_path + f
@@ -271,7 +286,10 @@ class ttsController:
                 os.remove(file)
             except:
                 print(f'Could not play file.')
-                continue
+
+            if session is not None and media_paused:
+                session.try_play_async()
+                media_paused = False
 
         # Hack way to let GUI know to decrease the visible messages?
         self.currently_playing = None
@@ -410,7 +428,6 @@ class ttsController:
 
                     if sub_message.strip() != '': message_list.append(sub_message_object)
 
-        print(message_list)
         return message_list
 
     async def update_stored_creds(self, token, refresh):
