@@ -33,6 +33,9 @@
 						<li class='nav-item'>
 							<a class='nav-link' href='#' data-toggle='modal' data-target='#aboutModal'>❔</a>
 						</li>
+						<li class='nav-item'>
+							<a class='nav-link' href='#' data-toggle='modal' data-target='#importModal'>🔽</a>
+						</li>
 				    </ul>
 				</div>
 			</nav>
@@ -81,6 +84,24 @@
 					</div>
 				</div>
 			</div>
+
+			<div class='modal fade' id='importModal' tabindex='-1' role='dialog' aria-labelledby='importModal' aria-hidden='true'>
+				<div class='modal-dialog modal-dialog-centered' role='document'>
+					<div class='modal-content'>
+						<div class='modal-header'>
+							<h5 class='modal-title'>Import from Chat Message</h5>
+							<button type='button' class='close' data-dismiss='modal' aria-label='Close'>
+								<span aria-hidden='true'>&times;</span>
+							</button>
+						</div>
+						<div class='modal-body'>
+							<p>Paste your luting chat message below:</p>
+							<textarea id='import_text'></textarea>
+							<button id='import_button' data-dismiss='modal' aria-label='Close'>Import</button>
+						</div>
+					</div>
+				</div>
+			</div>
 		</header>
 
 		<!-- Body of generator -->
@@ -93,7 +114,8 @@
 				<hr>
 				<h5>Notation:</h5>
 				<div id='notes'>
-					<p>Instructions in the ❔ above!</p>
+					<p>For luting instructions check the ❔ above.</p>
+					<p>Import a song from a chat message with 🔽 above.</p>
 					<div id='datatable'></div>
 					<br>
 					<p id='error_box'>Errors:</p>
