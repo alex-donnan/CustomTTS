@@ -7,3 +7,7 @@ PySimpleGUI
 requests
 twitchAPI
 websocket-client
+numpy
+winsdk
+tts
+websockets
