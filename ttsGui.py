@@ -326,20 +326,26 @@ class ttsGui():
                         self.app.wsapp = None
                         asyncio.run(self.app.reauth())
                 else:
+                    #Start workers and websocket
                     if os.path.exists(self.app.credentials_path):
                         print('Credentials exist, starting WebSocket app.')
                         self.window['CONNECT'].update(disabled=True)
                         self.window['USERNAME'].update(disabled=True)
                         asyncio.run(self.app.run())
-                        if not self.socket:
-                            self.socket = threading.Thread(target=self.app.wsapp.run_forever, daemon=True)
+                        self.socket = threading.Thread(target=self.app.wsapp.run_forever, daemon=True)
                         if self.socket and not self.socket.is_alive():
                             self.socket.start()
+                    elif self.app.target_channel not in (None, ''):
+                        asyncio.run(self.app.auth())                            
 
-                        #safety
-                        time.sleep(2)
+                    #safety
+                    time.sleep(2)
+                    
             except Exception as e:
                 print(f'Error updating the connection status and queue: ' + str(e))
+                if str(e) == 'Invalid refresh token' and os.path.exists(self.app.credentials_path):
+                    os.remove(self.app.credentials_path)
+                    print('Reauthenticating now.')
                 print('Trying update again in 2 seconds...')
                 time.sleep(2)
 
