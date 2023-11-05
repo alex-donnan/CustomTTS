@@ -39,6 +39,7 @@ class ttsGui():
             [
                 sg.Text('Queued Messages:'),
                 sg.Push(),
+                sg.Button('Skip', key='SKIP'),
                 sg.Button('Pause', key='PAUSE'),
                 sg.Button('Clear', key='CLEAR')
             ],
@@ -166,6 +167,8 @@ class ttsGui():
                         sg.popup(f'Failed to connect to user. Please try again: {ex}', title='Connection Failed')
                 else:
                     sg.popup(f'You must enter a Twitch Username', title='Missing Data')
+            elif event == 'SKIP':
+                self.app.skip_flag = True
             elif event == 'PAUSE':
                 self.app.pause_flag = not self.app.pause_flag
                 self.window['PAUSE'].update('Play' if self.app.pause_flag else 'Pause')

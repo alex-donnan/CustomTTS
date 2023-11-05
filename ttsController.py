@@ -113,6 +113,7 @@ class ttsController:
         self.tts_thread = None 
 
         self.currently_playing = None
+        self.skip_flag = False
         self.pause_flag = False
         self.clear_flag = False
         self.speaker_list = eval(self.config['DEFAULT']['Speakers'])
@@ -141,6 +142,7 @@ class ttsController:
                     self.tts_thread = self.tts_queue.get(timeout=1)
                     self.tts_thread()
                 except (queue.Empty, IndexError):
+                    self.skip_flag = False
                     continue
             else:
                 sleep(1)
@@ -179,97 +181,32 @@ class ttsController:
             elif voice == 'lute':
                 # MUSIC
                 try:
-                    tempo = 140
-                    tempo_check = ' '.join(message.split()).split()
-                    if len(tempo_check) == 2:
-                        tempo = max(int(tempo_check[0]), 70)
-                        print(f'Setting the tempo to {tempo}')
-                        message = tempo_check[1]
+                    url = 'https://luteboi.com/lute/?message=' + urllib.parse.quote_plus(message)
+                    data = requests.get(url)
+                    lute_file = data.text
 
-                    lines = message.split('|')
-                    line_lengths = []
-                    full_notation = []
-                    for id_line, line in enumerate(lines):
-                        beats = line.split('-')
-                        notation = []
-                        length = 1
-                        line_length = 0.
-                        repeat = False
-                        repeat_list = []
-                        for id_beat, beat in enumerate(beats):
-                            if beat == ':':
-                                if repeat:
-                                    for id_rep, rep in enumerate(repeat_list):
-                                        beats.insert(id_beat + 1 + id_rep, rep)
-                                    print(f'Repetition: ' + str(repeat_list))
-                                repeat = not repeat
-                                repeat_list = []
-                            else:
-                                if repeat:
-                                    repeat_list.append(beat)
-                                note = beat.split('.', 1)
+                    # Cleanup your messes!
+                    loop = True
+                    max_tries = 6
+                    while loop and max_tries != 0:
+                        print('Retrieving luting file from web.')
+                        url = f'https://luteboi.com/get_lute/?file={lute_file}'
+                        data = requests.get(url)
+                        loop = (data.status_code != 200)
+                        max_tries -= 1
 
-                                if ''.join(filter(str.isalpha, note[0])) in ttsController.NOTES:
-                                    str_note = note[-1]
-                                    if len(note) != 1:
-                                        if str_note[0] == '/':
-                                            str_note = str_note[1:]
-                                            if str_note[-1] == '*':
-                                                str_note = float(str_note[:-1]) / 1.5
-                                            length = 1 / float(str_note)
+                        if max_tries == 0:
+                            print('Failed to retrieve in 30 seconds')
+                            shutil.copyfile('./broken.wav', self.output_path + output_file + '.wav')
 
-                                        else:
-                                            if str_note[-1] == '*':
-                                                str_note = float(str_note[:-1]) * 1.5
-                                            length = float(str_note)
-                                    line_length += length
-                                    notation.append((note[0], 4. / length))
-
-                        line_lengths.append(line_length)
-                        full_notation.append(notation)
-
-                    max_length = max(line_lengths)
-                    last_file = self.generate_fname()
-                    file_list = []
-                    for id_line, line in enumerate(full_notation):
-                        cur_file = self.generate_fname()
-
-                        if line_lengths[id_line] != max_length:
-                            print(f'Line too short, adding rest to match {line_lengths[id_line]} to {max_length}')
-                            line.append(('r', float(4. / (max_length - line_lengths[id_line]))))
-                            print(tuple(line))
-
-                        if line != full_notation[-1] or len(full_notation) == 1:
-                            synth_t.make_wav(tuple(line), fn=self.output_path + cur_file + '.wav', bpm=tempo)
+                        if not loop:
+                            with open(self.output_path + output_file + '.wav', 'wb') as f:
+                                f.write(data.content)
                         else:
-                            synth_b.make_wav(tuple(line), fn=self.output_path + cur_file + '.wav', bpm=tempo)
-
-                        file_list.append(self.output_path + cur_file + '.wav')
-
-                    mixfiles.mix_many_files(file_list, self.output_path + last_file + '.wav', 1)
-
-                        # amix = 0.5
-                        # bmix = 0.5
-                        # if id_line == 2: bmix = 1.
-                        # if id_line >= 1 and line == full_notation[-1]: amix = 0.4
-                        # if id_line > 0:
-                        #     new_file = self.generate_fname()
-                        #     print(f'Mixing files {cur_file} and {last_file} into {new_file}')
-                        #     mixfiles.mix_files(self.output_path + cur_file + '.wav', \
-                        #                         self.output_path + last_file + '.wav', \
-                        #                         self.output_path + new_file + '.wav', amix, bmix, 1)
-                        #     print(f'Mixed {new_file}')
-                        #     os.remove(self.output_path + cur_file + '.wav')
-                        #     os.remove(self.output_path + last_file + '.wav')
-                        #     last_file = new_file
-                        # else:
-                        #     print(f'Tracking last file {cur_file}')
-                        #     last_file = cur_file
-
-                    message_object['message'] = '-'
-                    output_file = last_file
+                            sleep(5)
                 except Exception as ex:
                     print(f'Generation done broke. Sorry luter: {ex}')
+                    shutil.copyfile('./broken.wav', self.output_path + output_file + '.wav')
             else:
                 # Do Brian
                 url = 'https://api.streamelements.com/kappa/v2/speech?voice=Brian&text=' + urllib.parse.quote_plus(
@@ -277,7 +214,6 @@ class ttsController:
                 data = requests.get(url)
                 with open(self.output_path + output_file + '.mp3', 'wb') as f:
                     f.write(data.content)
-                f.close()
 
             # Put the file in the play queue
             print(f'New file for {voice}: {message}: {output_file}')
@@ -304,13 +240,15 @@ class ttsController:
             for f in os.listdir(self.output_path):
                 if message_object['filename'] == f[0:6]: file = self.output_path + f
             try:
-                self.currently_playing = soundplay(file)
-                while getIsPlaying(self.currently_playing):
-                    if self.clear_flag:
-                        stopsound(self.currently_playing)
-                    sleep(0.1)
-                stopsound(self.currently_playing)
-                #os.remove(file)
+                if file:
+                    self.currently_playing = soundplay(file)
+                    while getIsPlaying(self.currently_playing):
+                        if self.clear_flag or self.skip_flag:
+                            stopsound(self.currently_playing)
+                            self.skip_flag = False
+                        sleep(0.1)
+                    stopsound(self.currently_playing)
+                    os.remove(file)
             except:
                 print(f'Could not play file.')
 
