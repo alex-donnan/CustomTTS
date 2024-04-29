@@ -180,7 +180,7 @@ class ttsController:
             elif voice == 'lute':
                 # MUSIC
                 try:
-                    url = f'http://127.0.0.1:8000/lute/?message={urllib.parse.quote_plus("#lute " + message)}&key={urllib.parse.quote_plus(user)}'
+                    url = f'https://luteboi.com/lute/?message={urllib.parse.quote_plus("#lute " + message)}&key={urllib.parse.quote_plus(user)}'
                     data = requests.get(url)
                     with open(self.output_path + output_file + '.wav', 'wb') as f:
                         f.write(data.content)
