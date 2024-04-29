@@ -39,6 +39,7 @@ class ttsGui():
             [
                 sg.Text('Queued Messages:'),
                 sg.Push(),
+                sg.Button('Skip', key='SKIP'),
                 sg.Button('Pause', key='PAUSE'),
                 sg.Button('Clear', key='CLEAR')
             ],
@@ -66,7 +67,8 @@ class ttsGui():
                 sg.Input('Keyword', size=(15, 1), key='KEY'),
                 sg.Combo(speaker_list, expand_x=True, readonly=True, key='VOICE')
             ],
-            [sg.Listbox([key + ': ' +
+            [
+                sg.Listbox([key + ': ' +
                             self.app.speaker_list[key]['model'] +
                             (
                                 ' - ' + self.app.speaker_list[key]['speaker']
@@ -74,7 +76,8 @@ class ttsGui():
                             )
                             for key in self.app.speaker_list.keys()
                         ],
-                        size=(20, 16), expand_x=True, expand_y=True, enable_events=True, key='VOICES')]
+                        size=(20, 16), expand_x=True, expand_y=True, enable_events=True, key='VOICES')
+            ]
         ]
 
         sound_list = []
@@ -140,13 +143,9 @@ class ttsGui():
         multiline.bind('<MouseWheel>', lambda event, widget=multiline: yscroll(event, widget))
         multiline.configure(spacing1=0, spacing2=0, spacing3=8)
 
-        self.refresh_thread = threading.Thread(target=self.refresh_queue, args={multiline}, daemon=True)
-        self.refresh_thread.start()
-
         # Run the window capturing events
         while True:
-            event, values = self.window.read()
-            print(event)
+            event, values = self.window.read(timeout=500)
 
             # Standard operations
             if event in (None, sg.WINDOW_CLOSED, 'Quit', 'Exit'):
@@ -166,6 +165,8 @@ class ttsGui():
                         sg.popup(f'Failed to connect to user. Please try again: {ex}', title='Connection Failed')
                 else:
                     sg.popup(f'You must enter a Twitch Username', title='Missing Data')
+            elif event == 'SKIP':
+                self.app.skip_flag = True
             elif event == 'PAUSE':
                 self.app.pause_flag = not self.app.pause_flag
                 self.window['PAUSE'].update('Play' if self.app.pause_flag else 'Pause')
@@ -274,74 +275,69 @@ class ttsGui():
                 self.app.config.set('DEFAULT', 'Sounds', str(self.app.sound_list))
                 with open('config.ini', 'w') as configfile:
                     self.app.config.write(configfile)
-
-        self.window.close()
-
-
-    def refresh_queue(self, multiline=None):
-        while True:
-            # Update connection status
-            try:
-                if self.app.wsapp:
-                    self.status = 'assets/green.png' if self.app.connected else 'assets/red.png'
-                    self.window['STATUS'].update(self.status)
-                    self.window['CONNECT'].update(disabled=True)
-                    self.window['USERNAME'].update(disabled=True)
-
-                    # Collect messages
-                    items = []
-                    messages = []
-                    for item in self.app.tts_text:
-                        messages.append(item['user_name'] + ': ' + item['chat_message'])
-                        items.append(item)
-
-                    if messages != self.current_queue_list:
-                        self.current_queue_list = messages
-                        self.window['QUEUE'].update('\n'.join(messages))
-                        for tag in multiline.tag_names():
-                            if tag != 'fakesel' and tag != 'indent':
-                                multiline.tag_remove(tag, '1.0', 'end')
-                        for i in range(len(items)):
-                            multiline.tag_config(item['user_name'], font=('Helvetica', 10, 'bold'))
-                            multiline.tag_add(item['user_name'], f'{i+1}.0',
-                                              f'{i+1}.{len(items[i]["user_name"])}')
-
-                        multiline.tag_add('indent', '1.0', 'end')
-
-                    if self.load_thread and not self.load_thread.is_alive():
-                        speaker_list = []
-                        for key in self.app.tts_synth.keys():
-                            if self.app.tts_synth[key].tts_model.speaker_manager is not None:
-                                for speaker in self.app.tts_synth[key].tts_model.speaker_manager.speaker_names:
-                                    speaker_list.append(key + ': ' + speaker)
-                            else:
-                                speaker_list.append(key)
-                        self.window['VOICE'].update(values=speaker_list)
-                        self.load_thread = None
-
-                    time.sleep(1)
-
-                    # Disconnected? Try to connect
-                    if not self.app.connected:
-                        self.app.wsapp = None
-                        asyncio.run(self.app.reauth())
-                else:
-                    if os.path.exists(self.app.credentials_path):
-                        print('Credentials exist, starting WebSocket app.')
+            elif event == sg.TIMEOUT_EVENT:
+                try:
+                    if self.app.wsapp:
+                        self.status = 'assets/green.png' if self.app.connected else 'assets/red.png'
+                        self.window['STATUS'].update(self.status)
                         self.window['CONNECT'].update(disabled=True)
                         self.window['USERNAME'].update(disabled=True)
-                        asyncio.run(self.app.run())
-                        if not self.socket:
-                            self.socket = threading.Thread(target=self.app.wsapp.run_forever, daemon=True)
-                        if self.socket and not self.socket.is_alive():
-                            self.socket.start()
 
-                        #safety
-                        time.sleep(2)
-            except Exception as e:
-                print(f'Error updating the connection status and queue: ' + str(e))
-                print('Trying update again in 2 seconds...')
-                time.sleep(2)
+                        # Collect messages
+                        items = []
+                        messages = []
+                        for item in self.app.tts_text:
+                            messages.append(item['user_name'] + ': ' + item['chat_message'])
+                            items.append(item)
+
+                        if messages != self.current_queue_list:
+                            self.current_queue_list = messages
+                            self.window['QUEUE'].update('\n'.join(messages))
+                            for tag in multiline.tag_names():
+                                if tag != 'fakesel' and tag != 'indent':
+                                    multiline.tag_remove(tag, '1.0', 'end')
+                            for i in range(len(items)):
+                                multiline.tag_config(item['user_name'], font=('Helvetica', 10, 'bold'))
+                                multiline.tag_add(item['user_name'], f'{i+1}.0', f'{i+1}.{len(items[i]["user_name"])}')
+
+                            multiline.tag_add('indent', '1.0', 'end')
+
+                        if self.load_thread and not self.load_thread.is_alive():
+                            speaker_list = []
+                            for key in self.app.tts_synth.keys():
+                                if self.app.tts_synth[key].tts_model.speaker_manager is not None:
+                                    for speaker in self.app.tts_synth[key].tts_model.speaker_manager.speaker_names:
+                                        speaker_list.append(key + ': ' + speaker)
+                                else:
+                                    speaker_list.append(key)
+                            self.window['VOICE'].update(values=speaker_list)
+                            self.load_thread = None
+
+                        # Disconnected? Try to connect
+                        if not self.app.connected:
+                            self.app.wsapp = None
+                            asyncio.run(self.app.reauth())
+                    else:
+                        #Start workers and websocket
+                        if os.path.exists(self.app.credentials_path):
+                            print('Credentials exist, starting WebSocket app.')
+                            self.window['CONNECT'].update(disabled=True)
+                            self.window['USERNAME'].update(disabled=True)
+                            asyncio.run(self.app.run())
+                            self.socket = threading.Thread(target=self.app.wsapp.run_forever, daemon=True)
+                            if self.socket and not self.socket.is_alive():
+                                self.socket.start()
+                        elif self.app.target_channel not in (None, ''):
+                            asyncio.run(self.app.auth())
+                        
+                except Exception as e:
+                    print(f'Error updating the connection status and queue: ' + str(e))
+                    if str(e) == 'Invalid refresh token' and os.path.exists(self.app.credentials_path):
+                        os.remove(self.app.credentials_path)
+                        print('Reauthenticating now.')
+                    print('Trying update again in 2 seconds...')
+
+        self.window.close()            
 
     def clear_queue(self):
         was_paused = self.app.pause_flag
