@@ -4,5 +4,7 @@ models/*
 lutes/*
 output/
 output_bu/
+output_nu/
 tmp/
 testing/
+*/__pycache__/

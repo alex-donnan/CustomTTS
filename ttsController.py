@@ -3,7 +3,8 @@ from preferredsoundplayer import *
 from TTS.utils.synthesizer import Synthesizer
 from twitchAPI.oauth import UserAuthenticator, refresh_access_token
 from twitchAPI.twitch import Twitch
-from twitchAPI.types import AuthScope
+from twitchAPI.type import AuthScope
+
 import asyncio
 import configparser
 import emoji
@@ -20,13 +21,9 @@ import string
 import threading
 import urllib.parse
 import websocket
-import pysynth_s as synth_t
-import pysynth_b as synth_b
-import mixfiles
 import winsdk.windows.media.control as wmc
 
 DEVMODE = False
-
 
 def replace_emoji(message):
     message = re.sub(':[\\w_]+:', lambda m: re.sub('[:_]', ' ', m.group()), emoji.demojize(message))
@@ -156,11 +153,13 @@ class ttsController:
         return fname
 
     def generate_wav(self, msg):
+        user = msg['user_name']
         for id_msg, message_object in enumerate(msg['message']):
             output_file = self.generate_fname()
             prepend_file = None
 
             if self.clear_flag: continue
+            print(message_object)
             voice = message_object['voice']
             message = message_object['message']
 
@@ -181,32 +180,13 @@ class ttsController:
             elif voice == 'lute':
                 # MUSIC
                 try:
-                    url = 'https://luteboi.com/lute/?message=' + urllib.parse.quote_plus(message)
+                    url = f'http://127.0.0.1:8000/lute/?message={urllib.parse.quote_plus("#lute " + message)}&key={urllib.parse.quote_plus(user)}'
                     data = requests.get(url)
-                    lute_file = data.text
-
-                    # Cleanup your messes!
-                    loop = True
-                    max_tries = 6
-                    while loop and max_tries != 0:
-                        print('Retrieving luting file from web.')
-                        url = f'https://luteboi.com/get_lute/?file={lute_file}'
-                        data = requests.get(url)
-                        loop = (data.status_code != 200)
-                        max_tries -= 1
-
-                        if max_tries == 0:
-                            print('Failed to retrieve in 30 seconds')
-                            shutil.copyfile('./broken.wav', self.output_path + output_file + '.wav')
-
-                        if not loop:
-                            with open(self.output_path + output_file + '.wav', 'wb') as f:
-                                f.write(data.content)
-                        else:
-                            sleep(5)
+                    with open(self.output_path + output_file + '.wav', 'wb') as f:
+                        f.write(data.content)
                 except Exception as ex:
                     print(f'Generation done broke. Sorry luter: {ex}')
-                    shutil.copyfile('./broken.wav', self.output_path + output_file + '.wav')
+                    shutil.copyfile('./assets/broken.wav', self.output_path + output_file + '.wav')
             else:
                 # Do Brian
                 url = 'https://api.streamelements.com/kappa/v2/speech?voice=Brian&text=' + urllib.parse.quote_plus(
@@ -305,7 +285,8 @@ class ttsController:
                         'type': sub_type,
                         'version': '1',
                         'condition': {
-                            'broadcaster_user_id': self.broadcaster['data'][0]['id']
+                            'broadcaster_user_id': self.broadcaster['data'][0]['id'],
+                            'user_id': self.broadcaster['data'][0]['id']
                        },
                         'transport': {
                             'method': 'websocket',
@@ -433,6 +414,8 @@ class ttsController:
                 broad_request = requests.get(f'{ttsController.URI}/users?user_login={self.target_channel}',
                                              headers=self.headers)
                 self.broadcaster = broad_request.json()
+
+                print(self.broadcaster)
 
         # Create the socket for threading
         if not self.wsapp:

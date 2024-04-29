@@ -2,12 +2,12 @@ asyncio
 emoji
 espeakng
 num2words
+numpy
 preferredsoundplayer
 PySimpleGUI
 requests
+tts
 twitchAPI
 websocket-client
-numpy
-winsdk
-tts
 websockets
+winsdk
