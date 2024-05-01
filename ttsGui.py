@@ -10,6 +10,7 @@ import ttsController as TTS
 
 DEVMODE = False
 
+
 class ttsGui():
     def __init__(self, app: TTS):
         # TTS Controller
@@ -21,7 +22,7 @@ class ttsGui():
         self.load_thread = None
 
         # Theming
-        #sg.theme('DefaultNoMoreNagging')
+        # sg.theme('DefaultNoMoreNagging')
         sg.theme('LightGrey2')
 
         # PSGUI
@@ -43,7 +44,8 @@ class ttsGui():
                 sg.Button('Pause', key='PAUSE'),
                 sg.Button('Clear', key='CLEAR')
             ],
-            [sg.Multiline('', size=(80, 16), expand_x=True, expand_y=True, disabled=True, enable_events=True, key='QUEUE',
+            [sg.Multiline('', size=(80, 16), expand_x=True, expand_y=True, disabled=True, enable_events=True,
+                          key='QUEUE',
                           do_not_clear=False)]
         ]
 
@@ -75,8 +77,8 @@ class ttsGui():
                                 if self.app.speaker_list[key]['speaker'] else ''
                             )
                             for key in self.app.speaker_list.keys()
-                        ],
-                        size=(20, 16), expand_x=True, expand_y=True, enable_events=True, key='VOICES')
+                            ],
+                           size=(20, 16), expand_x=True, expand_y=True, enable_events=True, key='VOICES')
             ]
         ]
 
@@ -158,7 +160,7 @@ class ttsGui():
             elif event in ('CONNECT', 'USERNAME_Enter'):
                 if values['USERNAME'] != '':
                     try:
-                        #Start workers and websocket
+                        # Start workers and websocket
                         self.app.set_channel(values['USERNAME'])
                         asyncio.run(self.app.auth())
                     except Exception as ex:
@@ -204,7 +206,8 @@ class ttsGui():
                 if folder:
                     try:
                         shutil.copytree(folder, self.app.model_dir + folder.split('/')[-1])
-                        self.load_thread = threading.Thread(target=self.app.add_model, args=[folder.split('/')[-1]], daemon=True)
+                        self.load_thread = threading.Thread(target=self.app.add_model, args=[folder.split('/')[-1]],
+                                                            daemon=True)
                         self.load_thread.start()
                     except Exception as e:
                         sg.popup(f'Failed to load the model:\n{e}', title='Model Failure')
@@ -212,7 +215,8 @@ class ttsGui():
                             shutil.rmtree(self.app.model_dir + folder.split('/')[-1])
             elif event == 'ADDVOICE':
                 if values['KEY'] != '':
-                    if values['KEY'].lower() in self.app.sound_list.keys() or values['KEY'].lower() in self.app.speaker_list.keys():
+                    if values['KEY'].lower() in self.app.sound_list.keys() or values[
+                        'KEY'].lower() in self.app.speaker_list.keys():
                         sg.popup(f'The key "{values["KEY"]}" is already in use, please change.', title='Keyword Error')
                     else:
                         self.window['KEY'].update('')
@@ -245,7 +249,9 @@ class ttsGui():
                 with open('config.ini', 'w') as configfile:
                     self.app.config.write(configfile)
             elif event == 'LOADSOUND' or event == 'FILE':
-                file = sg.popup_get_file('Select the Wav or MP3 sound you would like to add:', title='Soundbath Selector 9000', file_types=(('Acceptable Files', '*.wav *.mp3'), ('Other Filty File Types', '*.*')))
+                file = sg.popup_get_file('Select the Wav or MP3 sound you would like to add:',
+                                         title='Soundbath Selector 9000', file_types=(
+                    ('Acceptable Files', '*.wav *.mp3'), ('Other Filty File Types', '*.*')))
                 if file:
                     shutil.copy(file, self.app.asset_path + file.split('/')[-1])
 
@@ -256,12 +262,15 @@ class ttsGui():
                     self.window['SOUND'].update(values=sound_list);
             elif event == 'ADDSOUND':
                 if values['SOUNDKEY'] != '':
-                    if values['SOUNDKEY'].lower() in self.app.sound_list.keys() or values['SOUNDKEY'].lower() in self.app.speaker_list.keys():
-                        sg.popup(f'The key "{values["SOUNDKEY"]}" is already in use, please change.', title='Keyword Error')
+                    if values['SOUNDKEY'].lower() in self.app.sound_list.keys() or values[
+                        'SOUNDKEY'].lower() in self.app.speaker_list.keys():
+                        sg.popup(f'The key "{values["SOUNDKEY"]}" is already in use, please change.',
+                                 title='Keyword Error')
                     else:
                         self.window['SOUNDKEY'].update('')
                         self.app.sound_list[values['SOUNDKEY'].lower()] = values['SOUND'].lower()
-                        self.window['SOUNDS'].update([f'{key}: {self.app.sound_list[key]}' for key in self.app.sound_list.keys()])
+                        self.window['SOUNDS'].update(
+                            [f'{key}: {self.app.sound_list[key]}' for key in self.app.sound_list.keys()])
                         self.app.config.set('DEFAULT', 'Sounds', str(self.app.sound_list))
                         with open('config.ini', 'w') as configfile:
                             self.app.config.write(configfile)
@@ -271,7 +280,8 @@ class ttsGui():
                 sounds = self.window['SOUNDS'].get()
                 for sound in sounds:
                     self.app.sound_list.pop(sound.split(':')[0])
-                self.window['SOUNDS'].update([f'{key}: {self.app.sound_list[key]}' for key in self.app.sound_list.keys()])
+                self.window['SOUNDS'].update(
+                    [f'{key}: {self.app.sound_list[key]}' for key in self.app.sound_list.keys()])
                 self.app.config.set('DEFAULT', 'Sounds', str(self.app.sound_list))
                 with open('config.ini', 'w') as configfile:
                     self.app.config.write(configfile)
@@ -298,7 +308,8 @@ class ttsGui():
                                     multiline.tag_remove(tag, '1.0', 'end')
                             for i in range(len(items)):
                                 multiline.tag_config(item['user_name'], font=('Helvetica', 10, 'bold'))
-                                multiline.tag_add(item['user_name'], f'{i+1}.0', f'{i+1}.{len(items[i]["user_name"])}')
+                                multiline.tag_add(item['user_name'], f'{i + 1}.0',
+                                                  f'{i + 1}.{len(items[i]["user_name"])}')
 
                             multiline.tag_add('indent', '1.0', 'end')
 
@@ -318,7 +329,7 @@ class ttsGui():
                             self.app.wsapp = None
                             asyncio.run(self.app.reauth())
                     else:
-                        #Start workers and websocket
+                        # Start workers and websocket
                         if os.path.exists(self.app.credentials_path):
                             print('Credentials exist, starting WebSocket app.')
                             self.window['CONNECT'].update(disabled=True)
@@ -329,7 +340,7 @@ class ttsGui():
                                 self.socket.start()
                         elif self.app.target_channel not in (None, ''):
                             asyncio.run(self.app.auth())
-                        
+
                 except Exception as e:
                     print(f'Error updating the connection status and queue: ' + str(e))
                     if str(e) == 'Invalid refresh token' and os.path.exists(self.app.credentials_path):
@@ -337,13 +348,13 @@ class ttsGui():
                         print('Reauthenticating now.')
                     print('Trying update again in 2 seconds...')
 
-        self.window.close()            
+        self.window.close()
 
     def clear_queue(self):
         was_paused = self.app.pause_flag
         self.app.pause_flag = True
         self.app.clear_flag = True
-            
+
         while not self.app.gen_queue.empty():
             try:
                 self.app.gen_queue.get(block=False)
@@ -360,12 +371,15 @@ class ttsGui():
 
         for file in os.listdir(self.app.output_path):
             if file.endswith('.wav') or file.endswith('.mp3'):
-                try: os.remove(os.path.join(self.app.output_path, file))
-                except: continue
+                try:
+                    os.remove(os.path.join(self.app.output_path, file))
+                except:
+                    continue
 
         asyncio.run(self.app.websocket_server.send("Speaker:none"))
         self.app.tts_text = []
         self.app.pause_flag = was_paused
+
 
 if __name__ == '__main__':
     controller = TTS.ttsController()
