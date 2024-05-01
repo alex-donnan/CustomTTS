@@ -1,0 +1,104 @@
+<html>
+
+<head>
+    <title>Who's speaking???</title>
+
+
+    <style>
+        #speaker {
+            position: absolute;
+            right: 0px;
+            bottom: 0px;
+        }
+
+        .visible {
+            animation-name: in;
+            animation-duration: 1s;
+            animation-fill-mode: forwards;
+        }
+
+        .hidden {
+            animation-name: out;
+            animation-duration: 1s;
+            animation-fill-mode: forwards;
+        }
+
+        @keyframes in {
+            0% {
+                transform: translateY(1000px);
+            }
+
+            100% {
+                transform: translateY(0px);
+            }
+        }
+
+        @keyframes out {
+            0% {
+                transform: translateY(0px);
+            }
+
+            100% {
+                transform: translateY(1000px);
+            }
+        }
+    </style>
+
+<body style="margin: 0">
+    <div style="width: 500px; height: 500px;position: relative; overflow: hidden;">
+        <img id='speaker' src="assets/default.webp" onError="this.src = 'assets/default.webp'">
+    </div>
+</body>
+<script>
+    function connect() {
+        let currentSpeaker = ""
+        console.log("connecting to ws")
+        const ws = new WebSocket("ws://localhost:1234");
+        ws.addEventListener("open", (event) => {
+            ws.send("connect")
+            console.log("open");
+        });
+
+        ws.addEventListener("close", () => {
+            console.log("connection closed");
+            setTimeout(() => {
+                console.log("attempting reconnect");
+                connect();
+            }, 1000);
+        });
+
+        ws.addEventListener("message", (data) => {
+            const speakerDiv = document.getElementById('speaker');
+            console.log(data.data)
+
+            if (String(data.data) == "Connected") {
+                speakerDiv.className = "hidden"
+                speakerDiv.src = "assets/default.webp"
+            }
+
+            if (String(data.data).startsWith("Speaker:")) {
+                let newSpeaker = data.data.split(":")[1]
+
+                if (currentSpeaker != newSpeaker) {
+                    console.log(`New speaker: ${newSpeaker}`)
+
+                    if (newSpeaker == "none") {
+                        speakerDiv.className = "hidden"
+                    } else {
+                        speakerDiv.src = `assets/${newSpeaker}.webp`
+                        // setTimeout(() => {
+                        speakerDiv.className = "visible"
+                        // }, 100)
+                    }
+                    currentSpeaker = newSpeaker
+                }
+            }
+        })
+    }
+
+    window.onload = function () {
+        connect();
+    }
+</script>
+
+</html>

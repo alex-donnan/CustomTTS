@@ -1,3 +1,4 @@
+import websockets
 from num2words import num2words
 from preferredsoundplayer import *
 from TTS.utils.synthesizer import Synthesizer
@@ -117,7 +118,14 @@ class ttsController:
         self.sound_list = eval(self.config['DEFAULT']['Sounds'])
         self.connected = False
 
-    # Worker
+        # for websocket server
+        self.current_speaker = "none"
+        self.last_speaker = "none"
+        self.websocket_server_thread = threading.Thread(target=self.start_websocket_server, daemon=True)
+        self.websocket_server_thread.start()
+        self.websocket_server = None
+
+    # Workers
     def gen_worker(self):
         while True:
             try:
@@ -143,6 +151,33 @@ class ttsController:
                     continue
             else:
                 sleep(1)
+
+    async def websocket_server_worker(self, websocket_server):
+        self.websocket_server = websocket_server
+        while True:
+            try:
+                client_message = await websocket_server.recv()
+            except websockets.ConnectionClosed:
+                print(f"Websocket server connection terminated")
+                break
+
+            print(f"< {client_message}")
+            if client_message == "connect":
+                response = f"Connected"
+                try:
+                    await websocket_server.send(response)
+                    print(f"> {response}")
+                except websockets.ConnectionClosed:
+                    print(f"Websocket server connection terminated")
+                    break
+
+    def start_websocket_server(self):
+        print("Starting websocket server")
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        ws_server = websockets.serve(self.websocket_server_worker, 'localhost', 1515)
+        loop.run_until_complete(ws_server)
+        loop.run_forever()
 
     # Audio generation or playback
     def generate_fname(self):
@@ -221,12 +256,20 @@ class ttsController:
                 if message_object['filename'] == f[0:6]: file = self.output_path + f
             try:
                 if file:
+                    if message_object['voice'] not in self.sound_list.keys() and self.websocket_server:
+                        asyncio.run(self.websocket_server.send(f"Speaker:{message_object['voice']}"))
+                        sleep(0.5)
+
                     self.currently_playing = soundplay(file)
                     while getIsPlaying(self.currently_playing):
                         if self.clear_flag or self.skip_flag:
                             stopsound(self.currently_playing)
                             self.skip_flag = False
                         sleep(0.1)
+
+                    if self.websocket_server:
+                        asyncio.run(self.websocket_server.send("Speaker:none"))
+                        sleep(0.5)
                     stopsound(self.currently_playing)
                     os.remove(file)
             except:
