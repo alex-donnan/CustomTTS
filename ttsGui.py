@@ -363,6 +363,7 @@ class ttsGui():
                 try: os.remove(os.path.join(self.app.output_path, file))
                 except: continue
 
+        asyncio.run(self.app.websocket_server.send("Speaker:none"))
         self.app.tts_text = []
         self.app.pause_flag = was_paused
 
