@@ -161,11 +161,12 @@ class ttsController:
                 break
 
             response = None
-            if client_message == "connect":
+            if client_message == "Connect":
                 response = "Connected"
                 print("Client connected, sending connection response.")
-            if client_message == "speaker":
+            if client_message.split(':')[0] == "Speaker" and client_message.split(':')[1] != self.current_speaker:
                 response = f"Speaker:{self.current_speaker}"
+                print(f"Client speaker update: {response}")
             
             if response:
                 try:
