@@ -57,7 +57,7 @@
         if ('WebSocket' in window) {
             const ws = new WebSocket("ws://localhost:1515");
             ws.onopen = event => {
-                ws.send("connect")
+                ws.send("Connect")
                 console.log("open");
             };
 
@@ -70,7 +70,7 @@
             };
 
             setInterval(function getSpeaker() {
-                ws.send("speaker");
+                ws.send(`Speaker:${currentSpeaker}`);
             }, 250);
 
             ws.onmessage = data => {

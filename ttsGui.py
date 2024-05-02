@@ -376,7 +376,7 @@ class ttsGui():
                 except:
                     continue
 
-        asyncio.run(self.app.websocket_server.send("Speaker:none"))
+        self.app.current_speaker = "none"
         self.app.tts_text = []
         self.app.pause_flag = was_paused
 
