@@ -120,7 +120,6 @@ class ttsController:
 
         # for websocket server
         self.current_speaker = "none"
-        self.last_speaker = "none"
         self.websocket_server_thread = threading.Thread(target=self.start_websocket_server, daemon=True)
         self.websocket_server_thread.start()
         self.websocket_server = None
@@ -161,14 +160,18 @@ class ttsController:
                 print(f"Websocket server connection terminated")
                 break
 
-            print(f"< {client_message}")
+            response = None
             if client_message == "connect":
-                response = f"Connected"
+                response = "Connected"
+                print("Client connected, sending connection response.")
+            if client_message == "speaker":
+                response = f"Speaker:{self.current_speaker}"
+            
+            if response:
                 try:
                     await websocket_server.send(response)
-                    print(f"> {response}")
                 except websockets.ConnectionClosed:
-                    print(f"Websocket server connection terminated")
+                    print("Websocket server connection terminated")
                     break
 
     def start_websocket_server(self):
@@ -257,8 +260,8 @@ class ttsController:
                 if message_object['filename'] == f[0:6]: file = self.output_path + f
             try:
                 if file:
-                    if message_object['voice'] not in self.sound_list.keys() and self.websocket_server:
-                        asyncio.run(self.websocket_server.send(f"Speaker:{message_object['voice']}"))
+                    if message_object['voice'] not in self.sound_list.keys():
+                        self.current_speaker = message_object['voice']
                         sleep(0.5)
 
                     self.currently_playing = soundplay(file)
@@ -268,9 +271,8 @@ class ttsController:
                             self.skip_flag = False
                         sleep(0.1)
 
-                    if self.websocket_server:
-                        asyncio.run(self.websocket_server.send("Speaker:none"))
-                        sleep(0.5)
+                    
+                    self.current_speaker = 'none'
                     stopsound(self.currently_playing)
                     os.remove(file)
             except:

@@ -51,50 +51,58 @@
 </body>
 <script>
     function connect() {
+        const speakerDiv = document.getElementById('speaker');
         let currentSpeaker = ""
         console.log("connecting to ws")
-        const ws = new WebSocket("ws://localhost:1234");
-        ws.addEventListener("open", (event) => {
-            ws.send("connect")
-            console.log("open");
-        });
+        if ('WebSocket' in window) {
+            const ws = new WebSocket("ws://localhost:1515");
+            ws.onopen = event => {
+                ws.send("connect")
+                console.log("open");
+            };
 
-        ws.addEventListener("close", () => {
-            console.log("connection closed");
-            setTimeout(() => {
-                console.log("attempting reconnect");
-                connect();
-            }, 1000);
-        });
+            ws.onclose = event => {
+                console.log("connection closed");
+                setTimeout(() => {
+                    console.log("attempting reconnect");
+                    connect();
+                }, 1000);
+            };
 
-        ws.addEventListener("message", (data) => {
-            const speakerDiv = document.getElementById('speaker');
-            console.log(data.data)
+            setInterval(function getSpeaker() {
+                ws.send("speaker");
+            }, 250);
 
-            if (String(data.data) == "Connected") {
-                speakerDiv.className = "hidden"
-                speakerDiv.src = "assets/default.webp"
-            }
+            ws.onmessage = data => {
+                console.log(data.data)
 
-            if (String(data.data).startsWith("Speaker:")) {
-                let newSpeaker = data.data.split(":")[1]
+                if (String(data.data) == "Connected") {
+                    speakerDiv.className = "hidden"
+                    speakerDiv.src = "assets/default.webp"
+                }
 
-                if (currentSpeaker != newSpeaker) {
-                    console.log(`New speaker: ${newSpeaker}`)
+                if (String(data.data).startsWith("Speaker:")) {
+                    let newSpeaker = data.data.split(":")[1]
 
-                    if (newSpeaker == "none") {
-                        speakerDiv.className = "hidden"
-                    } else {
-                        speakerDiv.src = `assets/${newSpeaker}.webp`
-                        // setTimeout(() => {
-                        speakerDiv.className = "visible"
-                        // }, 100)
+                    if (currentSpeaker != newSpeaker) {
+                        console.log(`New speaker: ${newSpeaker}`)
+
+                        if (newSpeaker == "none") {
+                            speakerDiv.className = "hidden"
+                        } else {
+                            speakerDiv.src = `assets/${newSpeaker}.webp`
+                            // setTimeout(() => {
+                            speakerDiv.className = "visible"
+                            // }, 100)
+                        }
+                        currentSpeaker = newSpeaker
                     }
-                    currentSpeaker = newSpeaker
                 }
             }
-        })
-    }
+        } else {
+            alert("You're browser does not support websockets. Please notify the blebs.");
+        }
+    } 
 
     window.onload = function () {
         connect();
