@@ -11,7 +11,6 @@ import emoji
 import glob
 import json
 import os
-import math
 import queue
 import random
 import re
@@ -21,9 +20,11 @@ import string
 import threading
 import urllib.parse
 import websocket
+import websockets
 import winsdk.windows.media.control as wmc
 
 DEVMODE = False
+
 
 def replace_emoji(message):
     message = re.sub(':[\\w_]+:', lambda m: re.sub('[:_]', ' ', m.group()), emoji.demojize(message))
@@ -71,7 +72,7 @@ class ttsController:
         'channel.subscription.gift',
         'channel.cheer'
     ]
-    NOTES = ['a','ab','b','bb','c','cb','d','db','e','eb','f','fb','g','gb','r']
+    NOTES = ['a', 'ab', 'b', 'bb', 'c', 'cb', 'd', 'db', 'e', 'eb', 'f', 'fb', 'g', 'gb', 'r']
     BEAT = [0, 4, 2, -2, 1]
 
     def __init__(self):
@@ -83,7 +84,7 @@ class ttsController:
         self.output_path = self.config['DEFAULT']['OutputDir']
         self.asset_path = self.config['DEFAULT']['AssetsDir']
         self.credentials_path = os.path.join(self.config['DEFAULT']['OutputDir'], "credentials.json")
-        
+
         self.target_channel = self.config['DEFAULT']['TargetChannel']
         self.app_id = self.config['DEFAULT']['TwitchAppId']
         self.app_secret = self.config['DEFAULT']['TwitchAppSecret']
@@ -107,7 +108,7 @@ class ttsController:
         self.gen_worker_thread = None
         self.tts_worker_thread = None
         self.gen_thread = None
-        self.tts_thread = None 
+        self.tts_thread = None
 
         self.currently_playing = None
         self.skip_flag = False
@@ -117,7 +118,13 @@ class ttsController:
         self.sound_list = eval(self.config['DEFAULT']['Sounds'])
         self.connected = False
 
-    # Worker
+        # for websocket server
+        self.current_speaker = "none"
+        self.websocket_server_thread = threading.Thread(target=self.start_websocket_server, daemon=True)
+        self.websocket_server_thread.start()
+        self.websocket_server = None
+
+    # Workers
     def gen_worker(self):
         while True:
             try:
@@ -143,6 +150,38 @@ class ttsController:
                     continue
             else:
                 sleep(1)
+
+    async def websocket_server_worker(self, websocket_server):
+        self.websocket_server = websocket_server
+        while True:
+            try:
+                client_message = await websocket_server.recv()
+            except websockets.ConnectionClosed:
+                print(f"Websocket server connection terminated")
+                break
+
+            response = None
+            if client_message == "Connect":
+                response = "Connected"
+                print("Client connected, sending connection response.")
+            if client_message.split(':')[0] == "Speaker" and client_message.split(':')[1] != self.current_speaker:
+                response = f"Speaker:{self.current_speaker}"
+                print(f"Client speaker update: {response}")
+            
+            if response:
+                try:
+                    await websocket_server.send(response)
+                except websockets.ConnectionClosed:
+                    print("Websocket server connection terminated")
+                    break
+
+    def start_websocket_server(self):
+        print("Starting websocket server")
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        ws_server = websockets.serve(self.websocket_server_worker, 'localhost', 1515)
+        loop.run_until_complete(ws_server)
+        loop.run_forever()
 
     # Audio generation or playback
     def generate_fname(self):
@@ -176,7 +215,8 @@ class ttsController:
                               self.output_path + output_file + '.wav')
             elif voice in self.sound_list.keys():
                 # Dear god forgive me for this sin
-                shutil.copy(os.path.join(self.asset_path, self.sound_list[voice]), self.output_path + output_file + os.path.splitext(self.sound_list[voice])[-1])
+                shutil.copy(os.path.join(self.asset_path, self.sound_list[voice]),
+                            self.output_path + output_file + os.path.splitext(self.sound_list[voice])[-1])
             elif voice == 'lute':
                 # MUSIC
                 try:
@@ -221,12 +261,19 @@ class ttsController:
                 if message_object['filename'] == f[0:6]: file = self.output_path + f
             try:
                 if file:
+                    if message_object['voice'] not in self.sound_list.keys():
+                        self.current_speaker = message_object['voice']
+                        sleep(0.5)
+
                     self.currently_playing = soundplay(file)
                     while getIsPlaying(self.currently_playing):
                         if self.clear_flag or self.skip_flag:
                             stopsound(self.currently_playing)
                             self.skip_flag = False
                         sleep(0.1)
+
+                    
+                    self.current_speaker = 'none'
                     stopsound(self.currently_playing)
                     os.remove(file)
             except:
@@ -251,7 +298,7 @@ class ttsController:
         self.connected = True
         try:
             print('Starting worker thread.')
-            
+
             if not self.tts_worker_thread:
                 self.tts_worker_thread = threading.Thread(target=self.tts_worker, daemon=True)
             if self.tts_worker_thread and not self.tts_worker_thread.is_alive():
@@ -265,7 +312,7 @@ class ttsController:
             return
         print('Connected to Twitch')
 
-    def on_message(self, ws, msg):        
+    def on_message(self, ws, msg):
         msg = json.loads(msg)
         if msg['metadata']['message_type'] == 'session_welcome':
             # session variables
@@ -287,7 +334,7 @@ class ttsController:
                         'condition': {
                             'broadcaster_user_id': self.broadcaster['data'][0]['id'],
                             'user_id': self.broadcaster['data'][0]['id']
-                       },
+                        },
                         'transport': {
                             'method': 'websocket',
                             'session_id': session_id
@@ -356,13 +403,16 @@ class ttsController:
                 message_list.append(sub_message_object)
 
             # Check your speakers
-            if key_check and (sub_message.split()[0].lower() in self.speaker_list.keys() or sub_message.split()[0].lower() in ('brian', 'lute')):
+            if key_check and (
+                    sub_message.split()[0].lower() in self.speaker_list.keys() or sub_message.split()[0].lower() in (
+                    'brian', 'lute')):
                 voice = sub_message.split()[0].lower()
                 sub_message_object = {
                     'voice': voice,
                     'message': sub_message.removeprefix(sub_message.split()[0]).strip()
                 }
-                if sub_message.removeprefix(sub_message.split()[0]).strip() != '': message_list.append(sub_message_object)
+                if sub_message.removeprefix(sub_message.split()[0]).strip() != '': message_list.append(
+                    sub_message_object)
             else:
                 if len(message_list) != 0:
                     message_list[-1]['message'] += ' #' + sub_message
@@ -434,7 +484,7 @@ class ttsController:
 
     def add_model(self, model_name):
         model_path = os.path.join(self.model_dir, model_name,
-                                      glob.glob('*.pth', root_dir=os.path.join(self.model_dir, model_name))[0])
+                                  glob.glob('*.pth', root_dir=os.path.join(self.model_dir, model_name))[0])
         config_path = os.path.join(self.model_dir, model_name, 'config.json')
         speakers_path = os.path.join(self.model_dir, model_name, 'speakers.pth')
         languages_path = os.path.join(self.model_dir, model_name, 'language_ids.json')
