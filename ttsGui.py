@@ -40,6 +40,8 @@ class ttsGui():
             [
                 sg.Text('Queued Messages:'),
                 sg.Push(),
+                sg.Button('Mute Luting', key="MUTE_LUTING"),
+                sg.Button('Mute TTS', key="MUTE_TTS"),
                 sg.Button('Skip', key='SKIP'),
                 sg.Button('Pause', key='PAUSE'),
                 sg.Button('Clear', key='CLEAR')
@@ -167,11 +169,18 @@ class ttsGui():
                         sg.popup(f'Failed to connect to user. Please try again: {ex}', title='Connection Failed')
                 else:
                     sg.popup(f'You must enter a Twitch Username', title='Missing Data')
+            elif event == "MUTE_LUTING":
+                self.app.mute_luting_flag = not self.app.mute_luting_flag
+                self.window['MUTE_LUTING'].update(text='Play Luting' if self.app.mute_luting_flag else 'Mute Luting', button_color='white on firebrick' if self.app.mute_luting_flag else ('#420000', '#d4d7dd'))
+            elif event == "MUTE_TTS":
+                self.app.mute_tts_flag = not self.app.mute_tts_flag
+                print(self.window['MUTE_TTS'].ButtonColor)
+                self.window['MUTE_TTS'].update(text='Play TTS' if self.app.mute_tts_flag else 'Mute TTS', button_color='white on firebrick' if self.app.mute_tts_flag else ('#420000', '#d4d7dd'))
             elif event == 'SKIP':
                 self.app.skip_flag = True
             elif event == 'PAUSE':
                 self.app.pause_flag = not self.app.pause_flag
-                self.window['PAUSE'].update('Play' if self.app.pause_flag else 'Pause')
+                self.window['PAUSE'].update(text='Play' if self.app.pause_flag else 'Pause', button_color='white on firebrick' if self.app.pause_flag else ('#420000', '#d4d7dd'))
             elif event == 'CLEAR':
                 self.clear_queue()
             elif event in ('ADDMSG', 'MSG_Enter'):

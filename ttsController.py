@@ -111,6 +111,8 @@ class ttsController:
         self.tts_thread = None
 
         self.currently_playing = None
+        self.mute_luting_flag = False
+        self.mute_tts_flag = False
         self.skip_flag = False
         self.pause_flag = False
         self.clear_flag = False
@@ -261,20 +263,25 @@ class ttsController:
                 if message_object['filename'] == f[0:6]: file = self.output_path + f
             try:
                 if file:
-                    if message_object['voice'] not in self.sound_list.keys():
+                    sound_muted = (self.mute_luting_flag and message_object['voice'] == "lute") or (self.mute_tts_flag and message_object['voice'] != "lute")
+
+                    if message_object['voice'] not in self.sound_list.keys() and not sound_muted:
                         self.current_speaker = message_object['voice']
                         sleep(0.5)
 
-                    self.currently_playing = soundplay(file)
-                    while getIsPlaying(self.currently_playing):
-                        if self.clear_flag or self.skip_flag:
-                            stopsound(self.currently_playing)
-                            self.skip_flag = False
-                        sleep(0.1)
+                    if sound_muted:
+                        self.skip_flag = False
+                    else:
+                        self.currently_playing = soundplay(file)
+                        while getIsPlaying(self.currently_playing):
+                            if self.clear_flag or self.skip_flag:
+                                stopsound(self.currently_playing)
+                                self.skip_flag = False
+                            sleep(0.1)
 
-                    
+                        stopsound(self.currently_playing)
+
                     self.current_speaker = 'none'
-                    stopsound(self.currently_playing)
                     os.remove(file)
             except:
                 print(f'Could not play file.')
