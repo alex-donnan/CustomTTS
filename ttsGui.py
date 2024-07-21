@@ -7,6 +7,7 @@ import shutil
 import threading
 import time
 import ttsController as TTS
+from bindglobal import BindGlobal
 
 DEVMODE = False
 
@@ -20,6 +21,11 @@ class ttsGui():
         self.themes = sg.theme_list()
         self.socket = None
         self.load_thread = None
+
+        # Hotkey listener
+        bg = BindGlobal()
+        bg.start()
+        bg.gbind('<End>', self.skip_message)
 
         # Theming
         # sg.theme('DefaultNoMoreNagging')
@@ -155,6 +161,7 @@ class ttsGui():
             if event in (None, sg.WINDOW_CLOSED, 'Quit', 'Exit'):
                 # Clean the outputs, if they got saved or crash
                 self.clear_queue()
+                bg.stop()
                 print('Closing app.')
                 break
 
@@ -388,6 +395,9 @@ class ttsGui():
         self.app.current_speaker = "none"
         self.app.tts_text = []
         self.app.pause_flag = was_paused
+
+    def skip_message(self, e):
+        self.app.skip_flag = True
 
 
 if __name__ == '__main__':

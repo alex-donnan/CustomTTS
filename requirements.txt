@@ -11,3 +11,4 @@ twitchAPI
 websocket-client
 websockets
 winsdk
+bindglobal
