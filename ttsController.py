@@ -56,7 +56,7 @@ async def get_media_session():
 
 
 class ttsController:
-    USER_SCOPE = [AuthScope.BITS_READ, AuthScope.CHANNEL_MODERATE, AuthScope.CHANNEL_READ_SUBSCRIPTIONS]
+    USER_SCOPE = [AuthScope.BITS_READ, AuthScope.CHANNEL_MODERATE, AuthScope.CHANNEL_READ_SUBSCRIPTIONS, AuthScope.USER_READ_CHAT]
     PREFIXES = prefixes = ["cheer", "hrycheer", "biblethump", "cheerwhal", "corgo", "uni", "showlove", "party",
                            "seemsgood",
                            "pride", "kappa", "frankerz", "heyguys", "dansgame", "elegiggle", "trihard", "kreygasm",
@@ -70,7 +70,8 @@ class ttsController:
     SUBSCRIPTIONS = [
         'channel.subscription.message',
         'channel.subscription.gift',
-        'channel.cheer'
+        'channel.cheer',
+        'channel.chat.message'
     ]
     NOTES = ['a', 'ab', 'b', 'bb', 'c', 'cb', 'd', 'db', 'e', 'eb', 'f', 'fb', 'g', 'gb', 'r']
     BEAT = [0, 4, 2, -2, 1]
@@ -353,30 +354,37 @@ class ttsController:
                     print(f'Subscription response: {response.json()}')
         elif msg['metadata']['message_type'] == 'notification':
             event = (msg['payload'])['event']
-            message = {}
-            if msg['payload']['subscription']['type'] == 'channel.subscription.gift':
-                message = {
-                    'user_name': event['user_name'],
-                    'chat_message': f"{event['total']} Gifted Sub{'' if event['total'] == 1 else 's'}",
-                    'no_message': True
-                }
-            elif msg['payload']['subscription']['type'] == 'channel.subscription.message':
-                message = {
-                    'user_name': event['user_name'],
-                    'chat_message': event['message']['text']
-                }
-            elif msg['payload']['subscription']['type'] == 'channel.cheer':
-                message = {
-                    'user_name': event['user_name'],
-                    'chat_message': event['message']
-                }
 
-            message['message'] = remove_cheermotes(message['chat_message'])
-            message['message'] = self.split_message(message['message'])
+            if msg['payload']['subscription']['type'] == 'channel.chat.message':
+                if event['message_type'] == 'text':
+                    is_moderator = any(map(lambda badge: badge['set_id'] == 'moderator' or badge['set_id'] == 'broadcaster', event['badges']))
+                    if is_moderator and event['message']['text'] == "!skip":
+                        self.skip_flag = True
+            else:
+                message = {}
+                if msg['payload']['subscription']['type'] == 'channel.subscription.gift':
+                    message = {
+                        'user_name': event['user_name'],
+                        'chat_message': f"{event['total']} Gifted Sub{'' if event['total'] == 1 else 's'}",
+                        'no_message': True
+                    }
+                elif msg['payload']['subscription']['type'] == 'channel.subscription.message':
+                    message = {
+                        'user_name': event['user_name'],
+                        'chat_message': event['message']['text']
+                    }
+                elif msg['payload']['subscription']['type'] == 'channel.cheer':
+                    message = {
+                        'user_name': event['user_name'],
+                        'chat_message': event['message']
+                    }
 
-            # Append to out text
-            self.tts_text.append(message)
-            self.gen_queue.put(lambda: self.generate_wav(message))
+                message['message'] = remove_cheermotes(message['chat_message'])
+                message['message'] = self.split_message(message['message'])
+
+                # Append to out text
+                self.tts_text.append(message)
+                self.gen_queue.put(lambda: self.generate_wav(message))
 
     def on_error(self, ws, msg):
         print(f'An error has occurred: {msg}')
