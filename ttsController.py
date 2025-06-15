@@ -116,6 +116,9 @@ class ttsController:
         self.mute_tts_flag = False
         self.skip_flag = False
         self.pause_flag = False
+        self.pause_command_flag = False
+        self.resume_command_flag = False
+        self.clear_command_flag = False
         self.clear_flag = False
         self.speaker_list = eval(self.config['DEFAULT']['Speakers'])
         self.sound_list = eval(self.config['DEFAULT']['Sounds'])
@@ -152,6 +155,7 @@ class ttsController:
                     self.skip_flag = False
                     continue
             else:
+                self.current_speaker = "paused"
                 sleep(1)
 
     async def websocket_server_worker(self, websocket_server):
@@ -182,9 +186,13 @@ class ttsController:
         print("Starting websocket server")
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        ws_server = websockets.serve(self.websocket_server_worker, 'localhost', 1515)
-        loop.run_until_complete(ws_server)
-        loop.run_forever()
+
+        # Create and start the server within the running loop
+        async def run_server():
+            async with websockets.serve(self.websocket_server_worker, 'localhost', 1515):
+                await asyncio.Future()  # Run forever
+
+        loop.run_until_complete(run_server())
 
     # Audio generation or playback
     def generate_fname(self):
@@ -248,6 +256,7 @@ class ttsController:
         return
 
     def play_wav(self, message_list):
+        self.current_speaker = "none"
         soundplay("assets/cheer.wav", block=True)
         sleep(0.25)
         media_paused = False
@@ -282,7 +291,7 @@ class ttsController:
 
                         stopsound(self.currently_playing)
 
-                    self.current_speaker = 'none'
+                    self.current_speaker = 'none' if not self.pause_flag else 'paused'
                     os.remove(file)
             except:
                 print(f'Could not play file.')
@@ -358,8 +367,15 @@ class ttsController:
             if msg['payload']['subscription']['type'] == 'channel.chat.message':
                 if event['message_type'] == 'text':
                     is_moderator = any(map(lambda badge: badge['set_id'] == 'moderator' or badge['set_id'] == 'broadcaster', event['badges']))
-                    if is_moderator and event['message']['text'] == "!skip":
-                        self.skip_flag = True
+                    if is_moderator:
+                        if event['message']['text'] == "!skip":
+                            self.skip_flag = True
+                        elif event['message']['text'] == "!pause":
+                            self.pause_command_flag = True
+                        elif event['message']['text'] == "!resume":
+                            self.resume_command_flag = True
+                        elif event['message']['text'] == "!clear":
+                            self.clear_command_flag = True
             else:
                 message = {}
                 if msg['payload']['subscription']['type'] == 'channel.subscription.gift':

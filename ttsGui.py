@@ -165,6 +165,17 @@ class ttsGui():
                 print('Closing app.')
                 break
 
+            # Twitch chat commands
+            if self.app.pause_command_flag:
+                self.pause_queue()
+                self.app.pause_command_flag = False
+            if self.app.resume_command_flag:
+                self.resume_queue()
+                self.app.resume_command_flag = False
+            if self.app.clear_command_flag:
+                self.clear_queue()
+                self.app.clear_command_flag = False
+
             # App operations
             elif event in ('CONNECT', 'USERNAME_Enter'):
                 if values['USERNAME'] != '':
@@ -187,7 +198,10 @@ class ttsGui():
                 self.app.skip_flag = True
             elif event == 'PAUSE':
                 self.app.pause_flag = not self.app.pause_flag
-                self.window['PAUSE'].update(text='Play' if self.app.pause_flag else 'Pause', button_color='white on firebrick' if self.app.pause_flag else ('#420000', '#d4d7dd'))
+                if self.app.pause_flag:
+                    self.pause_queue()
+                else:
+                    self.resume_queue()
             elif event == 'CLEAR':
                 self.clear_queue()
             elif event in ('ADDMSG', 'MSG_Enter'):
@@ -392,13 +406,21 @@ class ttsGui():
                 except:
                     continue
 
-        self.app.current_speaker = "none"
+        self.app.current_speaker = "none" if not self.app.pause_flag else "paused"
         self.app.tts_text = []
         self.app.pause_flag = was_paused
 
     def skip_message(self, e):
         self.app.skip_flag = True
 
+    def pause_queue(self):
+        self.app.pause_flag = True
+        self.window['PAUSE'].update(text='Play', button_color='white on firebrick')
+
+    def resume_queue(self):
+        self.app.pause_flag = False
+        self.app.current_speaker = "none"
+        self.window['PAUSE'].update(text='Pause', button_color=('#420000', '#d4d7dd'))
 
 if __name__ == '__main__':
     controller = TTS.ttsController()
