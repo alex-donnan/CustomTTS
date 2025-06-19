@@ -1,0 +1,5 @@
+asyncio
+websockets
+winrt-runtime
+winrt-windows.foundation
+winrt-windows.media.control
