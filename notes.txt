@@ -1,0 +1,30 @@
+*** NOTES AND TODOS ***
+
+Nginx
+- Reverse proxy for handling passthrough to Django, Listener services
+
+Django
+- Web page
+- Web admin
+- Use twitch OAuth to 'enable' app and login (post admin setup)
+	- Streamer v Moderator login?
+- WS server on page to listen to chat updates
+	- Chat queue
+		- Some metadata:
+			- User
+			- Label
+			- File retrieval
+		- First item in queue will ping Redis for data
+		- When data is ready from Generator and in Redis, will play audio track
+	- Speaker overlay (allow speaker overlay download?)
+- serve OBS folder download (scripts for pausing)
+
+Celery (Listener)
+- Listen to Twitch EventSub
+- Parse messages, send to Django, Generator
+
+Celery (Generator)
+- Generate TTS, luting (fine to wait)
+
+Redis
+- Message broker for Celery instances

@@ -1,0 +1,58 @@
+services:
+  # Broker
+  redis:
+    container_name: redis
+    image: redis:7.0.11-alpine
+  
+  # Main Django instance
+  portal:
+    container_name: portal
+    build:
+      context: ./portal/
+    command: gunicorn portal.wsgi:application --bind 0.0.0.0:1501
+    expose:
+      - 1501
+    volumes:
+      - ./portal/:/usr/src/app/
+      - static_files:/usr/src/app/staticfiles
+    env_file:
+      - ./.env/dev.env
+
+  # Reverse Proxy
+  nginx:
+    container_name: nginx
+    build:
+      context: ./nginx/
+    ports:
+      - 1500:80
+    volumes:
+      - ./nginx/conf.d/:/etc/nginx/conf.d/
+      - static_files:/home/app/staticfiles
+
+  # Celery workers
+  generator:
+    container_name: generator
+    build:
+      context: ./generator/
+      dockerfile: Dockerfile
+    command: celery -A generator worker -l INFO -Q generator_queue
+    volumes:
+      - ./generator/:/usr/src/app/
+    depends_on:
+      - portal
+      - redis
+
+  listener:
+    container_name: listener
+    build:
+      context: ./listener/
+      dockerfile: Dockerfile
+    command: celery -A listener worker -l INFO -Q listener_queue
+    volumes:
+      - ./listener/:/usr/src/app/
+    depends_on:
+      - portal
+      - redis
+
+volumes:
+  static_files:
