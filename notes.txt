@@ -3,28 +3,59 @@
 Nginx
 - Reverse proxy for handling passthrough to Django, Listener services
 
-Django
+Django -> This will be docked in OBS, will need responsive UI/streamer mode
 - Web page
 - Web admin
 - Use twitch OAuth to 'enable' app and login (post admin setup)
 	- Streamer v Moderator login?
-- WS server on page to listen to chat updates
+- SSE to page for chat updates
 	- Chat queue
 		- Some metadata:
 			- User
 			- Label
-			- File retrieval
-		- First item in queue will ping Redis for data
-		- When data is ready from Generator and in Redis, will play audio track
+			- Filename
+		- When data is ready from Generator and SSE received, stream
 	- Speaker overlay (allow speaker overlay download?)
 - serve OBS folder download (scripts for pausing)
 
 Celery (Listener)
-- Listen to Twitch EventSub
-- Parse messages, send to Django, Generator
+- Listen to Twitch EventSub for active users
+- Parse messages, SSE to web page, celery task to Generator queue
 
 Celery (Generator)
 - Generate TTS, luting (fine to wait)
+- Store output file in MEDIA_ROOT / username / tmp
+- SSE for username that file is ready for streaming
 
 Redis
 - Message broker for Celery instances
+
+*** DJANGO MODELS ***
+Data organization:
+
+User:
+	- id (twitch, pk)
+	- username
+	- profile_url
+	- moderates_user (id, fk 1-many)
+	- is_live
+	- last_live
+	- listener
+
+MediaSetting:
+	- id (uuid, pk)
+	- user (id, fk)
+	- media_location
+
+	- tts_enabled : False
+	- tts_trigger : (chat, cheer, sub/gift)
+	- tts_cost : 0
+	- tts_model_enabled : False
+	
+	- sound_enabled : False
+	- sound_trigger : (chat, cheer, sub/gift)
+	- sound_cost : 0
+	
+	- lute_enabled : False
+	- lute_trigger : (chat, cheer, sub/gift)
+	- lute_cost : 0

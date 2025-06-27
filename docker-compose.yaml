@@ -1,8 +1,22 @@
+name: ttsboi
+
 services:
   # Broker
   redis:
     container_name: redis
-    image: redis:7.0.11-alpine
+    image: redis:8.0-alpine
+    ports:
+      - 6379:6379
+    restart: always
+
+  redis_insight:
+    container_name: redis_insight
+    image: redis/redisinsight:2.68
+    ports:
+      - 5540:5540
+    depends_on:
+      - redis
+    restart: always
   
   # Main Django instance
   portal:
@@ -16,7 +30,7 @@ services:
       - ./portal/:/usr/src/app/
       - static_files:/usr/src/app/staticfiles
     env_file:
-      - ./.env/dev.env
+      - ./.config/.env
 
   # Reverse Proxy
   nginx:
