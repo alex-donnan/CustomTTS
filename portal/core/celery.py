@@ -3,10 +3,10 @@ from celery import Celery
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'portal.settings')
 
-app = Celery('portal')
+app = Celery('core')
 app.config_from_object('django.conf:settings', namespace='CELERY')
 app.conf.task_routes = {
-	'handler.tasks.task1': {'queue': 'generator_queue'},
-	'handler.tasks.task2': {'queue': 'listener_queue'}
+	'core.tasks.core_tasks.*': {'queue': 'core_queue'},
+	'core.tasks.generator_tasks.*': {'queue': 'generator_queue'}
 }
 app.autodiscover_tasks()

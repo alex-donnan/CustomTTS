@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+from twitchAPI.type import AuthScope
 import os
 import redis
 
@@ -19,7 +20,18 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('SECRET_KEY')
 DEBUG = os.environ.get('DEBUG')
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS').split(',')
-CSRF_TRUSTED_ORIGINS=['http://localhost:1500','http://127.0.0.1:1500']
+CSRF_TRUSTED_ORIGINS = ['https://ruling-walrus-main.ngrok-free.app','https://ttsboi.com']
+
+# Twitch Application
+APP_ID = os.environ.get('APP_ID')
+APP_SECRET = os.environ.get('APP_SECRET')
+EVENTSUB_URL = os.environ.get('EVENTSUB_URL')
+TARGET_SCOPES = [
+    AuthScope.BITS_READ,
+    AuthScope.CHANNEL_MODERATE,
+    AuthScope.CHANNEL_READ_SUBSCRIPTIONS,
+    AuthScope.USER_READ_CHAT
+]
 
 # Application definition
 INSTALLED_APPS = [

@@ -3,25 +3,13 @@ from django.db import models
 # Users (streamer or mod)
 class User(models.Model):
 	user_id = models.CharField(verbose_name='Twitch User ID')
-	user_name = models.CharField(
-		verbose_name='Twitch User/Channel Name',
-		max_length=50
-	)
-	profile_name = models.CharField(
-		verbose_name='Twitch User Display Name',
-		max_length=50
-	)
-	profile_url = models.CharField(
-		verbose_name='Twitch Profile URL',
-		max_length=200
-	)
-	channel_id = models.CharField(verbose_name='Twitch Channel ID')
-	channel_description = models.CharField(
-		verbose_name='Channel description',
-		max_length=300
-	)
-	last_live = models.DateField(verbose_name='Last Date Channel was Live')
-	last_authentication = models.DateField(verbose_name='Last Date Authenticated')
+	login = models.CharField(verbose_name='User Name')
+	display_name = models.CharField(verbose_name='User Display Name')
+	type = models.CharField(verbose_name='User type')
+	broadcaster_type = models.CharField(verbose_name='Broadcaster Type')
+	channel_description = models.CharField(verbose_name='Channel Description')
+	profile_image_url = models.CharField(verbose_name='Profile Image URL')
+	email = models.CharField(verbose_name='Email Address')
 
 	def __str__(self):
 		return f'{self.user_id}'

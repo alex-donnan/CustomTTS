@@ -1,6 +1,6 @@
 from django.contrib import admin
-from .models import User, UserSettings, UserModeratorRef
+from .models import User, UserSetting, UserModeratorRef
 
 admin.site.register(User)
 admin.site.register(UserModeratorRef)
-admin.site.register(UserSettings)
+admin.site.register(UserSetting)
