@@ -15,7 +15,7 @@ services:
   # Tunnel
   ngrok:
     image: ngrok/ngrok
-    command: http host.docker.internal:80 --url ruling-walrus-main.ngrok-free.app
+    command: http host.docker.internal:80
     env_file:
       - ./.config/ngrok.env
     depends_on:
@@ -24,14 +24,14 @@ services:
   # Broker
   redis:
     image: redis:8.0-alpine
-    ports:
-      - 6379:6379
+    expose:
+      - 6379
     restart: always
 
   redis_insight:
     image: redis/redisinsight:2.68
-    ports:
-      - 5540:5540
+    expose:
+      - 5540
     depends_on:
       - redis
     restart: always
@@ -40,26 +40,30 @@ services:
   portal:
     build:
       context: ./portal/
-    ports:
-      - 1500:1500
-      - 1501:1501
+    expose:
+      - 1500
+      - 1501
     volumes:
       - ./portal/:/usr/src/app/
       - static_files:/usr/src/app/staticfiles
+      - tmp_files:/user/src/app/tmpfiles
     env_file:
       - ./.config/.env
 
   # Celery worker
   generator:
     build:
-      context: ./generator/
-      dockerfile: Dockerfile
-    command: celery -A generator worker -l INFO -Q generator_queue
+      context: ./portal/
+    entrypoint: celery -A core worker -c 4 -l INFO -Q generator_queue
     volumes:
-      - ./generator/:/usr/src/app/
+      - ./portal/:/usr/src/app/
+      - tmp_files:/user/src/app/tmpfiles
+    env_file:
+      - ./.config/.env
     depends_on:
       - portal
       - redis
 
 volumes:
   static_files:
+  tmp_files:

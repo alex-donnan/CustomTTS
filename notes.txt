@@ -16,6 +16,7 @@ Django -> This will be docked in OBS, will need responsive UI/streamer mode
 			- Filename
 		- When data is ready from Generator and SSE received, stream
 	- Speaker overlay (allow speaker overlay download?)
+	- There's a limit of connections to SSE (6 for HTTP1.1) but we wouldn't expect a user/moderator to join that many at once.
 - serve OBS folder download (scripts for pausing)
 
 Celery (Listener)
@@ -30,32 +31,9 @@ Celery (Generator)
 Redis
 - Message broker for Celery instances
 
-*** DJANGO MODELS ***
-Data organization:
+If an event or trigger is globally disabled we need some way to force a refresh of the eventsub object to unsubscribe from listeners
+That OR have a celery beat turn it off
 
-User:
-	- id (twitch, pk)
-	- username
-	- profile_url
-	- moderates_user (id, fk 1-many)
-	- is_live
-	- last_live
-	- listener
-
-MediaSetting:
-	- id (uuid, pk)
-	- user (id, fk)
-	- media_location
-
-	- tts_enabled : False
-	- tts_trigger : (chat, cheer, sub/gift)
-	- tts_cost : 0
-	- tts_model_enabled : False
-	
-	- sound_enabled : False
-	- sound_trigger : (chat, cheer, sub/gift)
-	- sound_cost : 0
-	
-	- lute_enabled : False
-	- lute_trigger : (chat, cheer, sub/gift)
-	- lute_cost : 0
+TODO:
+- On user login perform subscriptions
+	- They aren't working. Twitch API user requirements? no visible errors

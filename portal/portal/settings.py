@@ -15,21 +15,25 @@ from twitchAPI.type import AuthScope
 import os
 import redis
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-SECRET_KEY = os.environ.get('SECRET_KEY')
+
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
 DEBUG = os.environ.get('DEBUG')
+
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS').split(',')
-CSRF_TRUSTED_ORIGINS = ['https://ruling-walrus-main.ngrok-free.app','https://ttsboi.com']
+CSRF_TRUSTED_ORIGINS = list(map(lambda host: f'https://{host}', ALLOWED_HOSTS))
+SECRET_KEY = os.environ.get('SECRET_KEY')
+TMP_FILE_DIR = '/user/src/app/tmpfiles'
 
 # Twitch Application
 APP_ID = os.environ.get('APP_ID')
 APP_SECRET = os.environ.get('APP_SECRET')
 EVENTSUB_URL = os.environ.get('EVENTSUB_URL')
+USER_AUTH_URL = os.environ.get('USER_AUTH_URL')
 TARGET_SCOPES = [
     AuthScope.BITS_READ,
-    AuthScope.CHANNEL_MODERATE,
     AuthScope.CHANNEL_READ_SUBSCRIPTIONS,
+    AuthScope.MODERATOR_READ_FOLLOWERS,
     AuthScope.USER_READ_CHAT
 ]
 
@@ -41,7 +45,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'core'
+    # Local
+    'core.apps.CoreConfig'
 ]
 
 MIDDLEWARE = [
@@ -85,6 +90,17 @@ DATABASES = {
     }
 }
 
+# Caches
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': 'redis://redis:6379/0',
+    }
+}
+
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'default'
+
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 
@@ -126,5 +142,5 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Celery broker setup
 
-CELERY_BROKER_URL = os.environ.get('CELERY_BROKER', 'redis://redis:6379/0')
-CELERY_RESULT_BACKEND = os.environ.get('CELERY_BACKEND', 'redis://redis:6379/0')
+CELERY_BROKER_URL = 'redis://redis:6379/0'
+CELERY_RESULT_BACKEND = 'redis://redis:6379/0'
