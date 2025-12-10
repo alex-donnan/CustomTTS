@@ -8,3 +8,4 @@ output_nu/
 tmp/
 testing/
 */__pycache__/
+.venv/

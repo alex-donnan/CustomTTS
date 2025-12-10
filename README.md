@@ -6,25 +6,16 @@
 2. ttsGui.exe
 
 ## Changes (idfk it works)
-1. pip reinstall librosa, decorator, audioread, unidic_lite
-2. Additional hook for librosa, maybe TTS, trainer, and gruut
-	- Librosa needs explicit .core addition
-	- TTS, trainer, gruut all got hardcoded versions in ```__init__.py```
-3. Modify TTs/tts/layers/generic/wavenet.py decorator at 5 to ```@torch.jit._script_if_tracing```
-4. Add TTS to the PATH, cause why not. Or figure out how to ```pip install -e TTS``` without setup.py
-5. auto-py-to-exe, Settings > Import Config from pyinstaller.JSON
-6. Build
-7. In output > ttsGui > librosa.__init__.pyi add:
-	```
-		from .core import (
-			magphase as magphase,
-			pyin as pyin
-		)
-	```
-	Compile to .pyc, replace
-8. In output > ttsGui > TTS move the configs to a new folder tts
-9. ???
-10. Profit
+In .venv -
+1. pip install auto-py-to-exe, requirements.txt
+2. Modify TTs/tts/layers/generic/wavenet.py decorator at 5 to ```@torch.jit._script_if_tracing```
+3. auto-py-to-exe, Settings > Import Config from pyinstaller.JSON
+4. Build
+5. Add source folder ```inflect``` from .venv/Lib/ into ```_include``` folder
+6. TTS, gruut got hardcoded versions in output (can just add VERSION in named folder)
+7. In output > ttsGui > TTS move the configs to a new folder tts
+8. ???
+9. Profit
 
 ## Models
 If you are creating a new model, please ensure the following:

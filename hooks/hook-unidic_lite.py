@@ -1,2 +1,2 @@
-datas = [('C:/Users/alexd/AppData/Local/Programs/Python/Python310/Lib/site-packages/unidic_lite/*', 'unidic_lite'),
-		('C:/Users/alexd/AppData/Local/Programs/Python/Python310/Lib/site-packages/unidic_lite/dicdir/*', 'unidic_lite/dicdir')]
+datas = [('C:/Users/alexd/Documents/CustomTTS_v1/.venv/Lib/site-packages/unidic_lite/*', 'unidic_lite'),
+		('C:/Users/alexd/Documents/CustomTTS_v1/.venv/Lib/site-packages/unidic_lite/dicdir/*', 'unidic_lite/dicdir')]

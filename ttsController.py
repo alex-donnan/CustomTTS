@@ -25,7 +25,6 @@ import winsdk.windows.media.control as wmc
 
 DEVMODE = False
 
-
 def replace_emoji(message):
     message = re.sub(':[\\w_]+:', lambda m: re.sub('[:_]', ' ', m.group()), emoji.demojize(message))
     return message
@@ -85,6 +84,8 @@ class ttsController:
         self.output_path = self.config['DEFAULT']['OutputDir']
         self.asset_path = self.config['DEFAULT']['AssetsDir']
         self.credentials_path = os.path.join(self.config['DEFAULT']['OutputDir'], "credentials.json")
+
+        self.streamelements_key = self.config['DEFAULT']['streamelementskey']
 
         self.target_channel = self.config['DEFAULT']['TargetChannel']
         self.app_id = self.config['DEFAULT']['TwitchAppId']
@@ -240,8 +241,7 @@ class ttsController:
                     shutil.copyfile('./assets/broken.wav', self.output_path + output_file + '.wav')
             else:
                 # Do Brian
-                url = 'https://api.streamelements.com/kappa/v2/speech?voice=Brian&text=' + urllib.parse.quote_plus(
-                    message)
+                url = f'https://api.streamelements.com/kappa/v2/speech?voice=Brian&text={urllib.parse.quote_plus(message)}&key={self.streamelements_key}'
                 data = requests.get(url)
                 with open(self.output_path + output_file + '.mp3', 'wb') as f:
                     f.write(data.content)
@@ -376,6 +376,14 @@ class ttsController:
                             self.resume_command_flag = True
                         elif event['message']['text'] == "!clear":
                             self.clear_command_flag = True
+                        elif event['message']['text'] == "!pausetts":
+                            self.mute_tts_flag = True
+                        elif event['message']['text'] == "!pauselute":
+                            self.mute_luting_flag = True
+                        elif event['message']['text'] == "!resumetts":
+                            self.mute_tts_flag = False
+                        elif event['message']['text'] == "!resumelute":
+                            self.mute_luting_flag = False
             else:
                 message = {}
                 if msg['payload']['subscription']['type'] == 'channel.subscription.gift':

@@ -1,1 +1,1 @@
-datas = [('C:/Users/alexd/AppData/Local/Programs/Python/Python310/Lib/site-packages/espeakng/*', 'espeak')]
+datas = [('C:/Users/alexd/Documents/CustomTTS_v1/.venv/Lib/site-packages/espeakng/*', 'espeak')]
