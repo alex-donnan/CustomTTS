@@ -1,0 +1,34 @@
+[DEFAULT]
+targetchannel = 
+outputdir = ./tmp/
+modeldir = ./models/
+assetsdir = ./assets/
+twitchappid = 
+twitchappsecret = 
+
+[FLAGS]
+skip = False
+pause = False
+clear = False
+
+[CHAT]
+active = True
+
+[TTS]
+streamelementskey = 
+costs = {"bits":0,"subs":0,"donations":0}
+active = True
+
+[AI]
+speakers = {}
+costs = {"bits":0,"subs":0,"donations":0}
+active = True
+
+[SOUND]
+sounds = {}
+costs = {"bits":0,"subs":0,"donations":0}
+active = True
+
+[LUTE]
+costs = {"bits":0,"subs":0,"donations":0}
+active = True
