@@ -13,7 +13,6 @@ class sessionStartAction(appAction):
 
 		init_check = requests.get(self.app.SUBS_ENDPOINT + '?status=enabled', headers=self.app.headers).json()
 		sub_check = [sub['type'] for sub in init_check['data']]
-		print(f'Previous subscriptions that are active: {sub_check}\nThese will be skipped')
 
 		for sub in self.app.subscriptions:
 			if sub not in sub_check:

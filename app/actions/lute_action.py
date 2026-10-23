@@ -7,17 +7,18 @@ import requests
 class luteAction(paidAction):
 	def post_init(self):
 		self.keywords = ['lute']
+		self.require_next = True
 
 	def generate(self, msg):
 		if self.config['FLAGS'].getboolean('clear'): return msg
 
 		user = msg['user_name']
-		output_file = f"{self.config['DEFAULT']['outputdir']}{self.generate_fname()}.wav"
+		output_file = f"{msg['filename']}.wav"
 		message = msg['message']
 
 		try:
 			# Do lute
-			url = f'https://luteboi.com/lute/?message={urllib.parse.quote_plus("#lute " + message)}&key={urllib.parse.quote_plus(user)}'
+			url = f'https://luteboi.com/lute/?message={urllib.parse.quote_plus(message)}&key={urllib.parse.quote_plus(user)}'
 			data = requests.get(url)
 			with open(output_file, 'wb') as f:
 				f.write(data.content)

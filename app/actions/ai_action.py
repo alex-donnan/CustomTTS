@@ -8,7 +8,7 @@ class aiAction(paidAction):
 	def generate(self, msg):
 		if not self.config[self.name].getboolean('active'): return msg
 
-		output_file = f"{self.config['DEFAULT']['outputdir']}{self.generate_fname()}.wav"
+		output_file = f"{msg['filename']}.wav"
 		voice = msg['message'].split(' ')[0][1:]
 		message = msg['message']
 

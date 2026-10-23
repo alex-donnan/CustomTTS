@@ -2,18 +2,18 @@
   "sample_rate": 44100,
   "encoder_dim": 64,
   "encoder_rates": [
-    2,
-    4,
-    8,
-    8
+	2,
+	4,
+	8,
+	8
   ],
   "latent_dim": 1024,
   "decoder_dim": 1536,
   "decoder_rates": [
-    8,
-    8,
-    4,
-    2
+	8,
+	8,
+	4,
+	2
   ],
   "n_codebooks": 9,
   "codebook_size": 1024,

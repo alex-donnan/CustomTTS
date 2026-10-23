@@ -4,6 +4,7 @@ from tts_utils import *
 class paidAction(appAction):
 	default = False
 	default_value = ''
+	require_next = False
 	keywords = []
 
 	def __init__(self, app, config, name):

@@ -12,8 +12,8 @@ class soundAction(paidAction):
 	def generate(self, msg):
 		if not self.config[self.name].getboolean('active'): return msg
 
-		sound = msg['message'].split(' ')[0][1:]
-		output_file = f"{self.config['DEFAULT']['outputdir']}{self.generate_fname()}.wav"
+		output_file =  f"{msg['filename']}.wav"
+		sound = msg['message'].split(' ')[0][1:].lower()
 		
 		# Dear god forgive me for this sin
 		try:

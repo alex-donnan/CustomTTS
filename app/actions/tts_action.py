@@ -2,7 +2,6 @@ from .paid_action import paidAction
 from tts_utils import *
 
 import requests
-import urllib
 
 class ttsAction(paidAction):
 	default = True
@@ -25,8 +24,8 @@ class ttsAction(paidAction):
 	def generate(self, msg):
 		if not self.config[self.name].getboolean('active'): return msg
 
-		output_file = f"{self.config['DEFAULT']['outputdir']}{self.generate_fname()}.mp3"
-		voice = msg['message'].split(' ')[0][1:]
+		output_file = f"{msg['filename']}.mp3"
+		voice = msg['message'].split(' ')[0][1:].lower()
 		message = msg['message']
 		if voice in self.keywords:
 			voice = self.voices[voice]

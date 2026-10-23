@@ -3,11 +3,11 @@ import torch.multiprocessing as mp
 import websockets
 
 class ttsWebsocket:
-	def __init__(self, app, host: str = 'localhost', port: int = 1515):
-		self.app = app
+	def __init__(self, host: str = 'localhost', port: int = 1515):
 		self.host = host
 		self.port = port
 		self.server = None
+		self.current_speaker = 'none'
 
 	 # Frontend WebSocket service
 	async def handler(self, server):
@@ -22,8 +22,8 @@ class ttsWebsocket:
 			if client_message == "Connect":
 				response = "Connected"
 				print("Client connected, sending connection response.")
-			if client_message.split(':')[0] == "Speaker" and client_message.split(':')[1] != self.app.current_speaker:
-				response = f"Speaker:{self.app.current_speaker}"
+			if client_message.split(':')[0] == "Speaker" and client_message.split(':')[1] != self.current_speaker:
+				response = f"Speaker:{self.current_speaker}"
 				print(f"Client speaker update: {response}")
 			
 			if response:
