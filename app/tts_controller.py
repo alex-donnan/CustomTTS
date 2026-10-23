@@ -4,7 +4,9 @@ from torch.backends.cuda import cuBLASModule
 from twitchAPI.oauth import UserAuthenticator, refresh_access_token
 from twitchAPI.twitch import Twitch
 from twitchAPI.type import AuthScope
+
 from echo import ttsEcho
+from tts_websocket import ttsWebsocket
 
 import asyncio
 import configparser
@@ -15,11 +17,26 @@ import queue
 import re
 import requests
 import shutil
-import threading
+import torch.multiprocessing as mp
 import websocket
 import websockets
 
 DEVMODE = False
+
+# Workers
+def gen_worker(gen_queue, generate):
+    while True:
+        try:
+            generate(gen_queue.get(timeout=1))
+        except (queue.Empty, IndexError):
+            continue
+
+def tts_worker(tts_queue, play_audio):
+    while True:
+        try:
+            play_audio(tts_queue.get(timeout=1))
+        except (queue.Empty, IndexError):
+            continue
 
 class ttsController:
     USER_SCOPE = [
@@ -49,15 +66,16 @@ class ttsController:
         self.headers = {}
         self.subscriptions = []
         self.broadcaster = {}
-        self.wsapp = None
+        self.ws_app = None
 
-        # queues and threads for background work
-        self.gen_queue = queue.Queue()
-        self.gen_worker_thread = None
-        self.gen_thread = None
-        self.tts_queue = queue.Queue()
-        self.tts_worker_thread = None
-        self.tts_thread = None
+        # queues and processs for background work
+        mp.set_start_method('spawn', force=True)
+        self.gen_queue = mp.Queue()
+        self.tts_queue = mp.Queue()
+        self.gen_worker_process = mp.Process(target=gen_worker, args=(self.gen_queue, self.generate,), daemon=True)
+        self.tts_worker_process = mp.Process(target=tts_worker, args=(self.tts_queue, self.play_audio,), daemon=True)
+        self.gen_worker_process.start()
+        self.tts_worker_process.start()
 
         # visual details for frontend
         self.tts_text = []
@@ -79,77 +97,42 @@ class ttsController:
             'TTS': ttsAction(self, self.config, 'TTS'),
         }
 
-        # for websocket server
+        # websocket server
         self.current_speaker = "none"
-        self.websocket_server_thread = threading.Thread(target=self.start_websocket_server, daemon=True)
-        self.websocket_server_thread.start()
-        self.websocket_server = None
+        #self.websocket_server = ttsWebsocket(self)
+        #def run_server():
+        #    ayncio.run(self.websocket_server.start())
+        #self.websocket_process = mp.Process(target=run_server, daemon=True)
 
-    # Workers
-    def gen_worker(self):
-        while True:
+    # Config
+    def save_config(self):
+        print("Saving config")
+        with open('config.ini', 'w') as configfile:
+            self.config.write(configfile)
+
+    # Shutdown
+    def shutdown(self):
+        self.save_config()
+        while not self.gen_queue.empty():
             try:
-                self.gen_thread = self.gen_queue.get(timeout=1)
-                self.gen_thread()
-            except (queue.Empty, IndexError):
-                continue
-
-    def tts_worker(self):
-        while True:
-            if self.config['FLAGS'].getboolean('clear'):
-                if self.tts_queue.empty() and self.gen_queue.empty():
-                    self.config.set('FLAGS', 'clear', 'False')
-                    continue
-
-            # Play any sounds
-            if not self.config['FLAGS'].getboolean('pause'):
-                try:
-                    self.tts_thread = self.tts_queue.get(timeout=1)
-                    self.tts_thread()
-                except (queue.Empty, IndexError):
-                    self.config.set('FLAGS', 'skip', 'False')
-                    continue
-            else:
-                self.current_speaker = "paused"
-                sleep(1)
-
-    # Websocket service
-    async def websocket_server_worker(self, websocket_server):
-        self.websocket_server = websocket_server
-        while True:
-            try:
-                client_message = await websocket_server.recv()
-            except websockets.ConnectionClosed:
-                print(f"Websocket server connection terminated")
+                self.gen_queue.get(block=False)
+                self.gen_queue.task_done()
+            except mp.Queue.Empty:
                 break
 
-            response = None
-            if client_message == "Connect":
-                response = "Connected"
-                print("Client connected, sending connection response.")
-            if client_message.split(':')[0] == "Speaker" and client_message.split(':')[1] != self.current_speaker:
-                response = f"Speaker:{self.current_speaker}"
-                print(f"Client speaker update: {response}")
-            
-            if response:
-                try:
-                    await websocket_server.send(response)
-                except websockets.ConnectionClosed:
-                    print("Websocket server connection terminated")
-                    break
+        while not self.tts_queue.empty():
+            try:
+                self.tts_queue.get(block=False)
+                self.tts_queue.task_done()
+            except mp.Queue.Empty:
+                break
 
-    def start_websocket_server(self):
-        print("Starting websocket server")
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        #self.websocket_server.stop()
+        self.echo.unload_models()
 
-        # Create and start the server within the running loop
-        async def run_server():
-            async with websockets.serve(self.websocket_server_worker, 'localhost', 1515):
-                await asyncio.Future()  # Run forever
+        print("Shutting down")
 
-        loop.run_until_complete(run_server())
-
+    # Generator
     def generate(self, message_list):
         audio_list = []
         for msg in message_list:
@@ -158,17 +141,16 @@ class ttsController:
                 if bool(msg_obj):
                     audio_list.append(msg_obj)
             except Exception as e:
-                print('Failed to generate audio, aborting message')
-                print(e)
+                print(f'Failed to generate audio, aborting message: {e}')
                 break
 
         if len(audio_list) > 0:
-            self.tts_queue.put(lambda: self.play_wav(audio_list))
-        self.gen_thread = None
-        self.gen_queue.task_done()
+            self.tts_queue.put(audio_list)
+        self.gen_process.task_done()
         return
 
-    def play_wav(self, audio_list):
+    # File player
+    def play_audio(self, audio_list):
         self.current_speaker = "none"
         soundplay("assets/cheer.wav", block=True)
         sleep(0.25)
@@ -211,85 +193,73 @@ class ttsController:
 
         # Hack way to let GUI know to decrease the visible messages?
         self.currently_playing = None
-        self.tts_thread = None
         self.tts_queue.task_done()
 
         # Remove from out text
         self.tts_text = self.tts_text[1:]
         return
 
-    # WebSocket event methods
+    # Twitch WebSocket event methods
     def on_open(self, ws):
         # update the color
         self.connected = True
-        try:
-            print('Starting worker thread.')
-
-            if not self.tts_worker_thread:
-                self.tts_worker_thread = threading.Thread(target=self.tts_worker, daemon=True)
-            if self.tts_worker_thread and not self.tts_worker_thread.is_alive():
-                self.tts_worker_thread.start()
-
-            if not self.gen_worker_thread:
-                self.gen_worker_thread = threading.Thread(target=self.gen_worker, daemon=True)
-            if self.gen_worker_thread and not self.gen_worker_thread.is_alive():
-                self.gen_worker_thread.start()
-        except:
-            return
         print('Connected to Twitch')
 
     def on_message(self, ws, msg):
         msg = json.loads(msg)
 
-        if msg['metadata']['message_type'] == 'session_welcome':
-            self.actions['SESSION'].action(msg)
+        try:
+            if msg['metadata']['message_type'] == 'session_welcome':
+                self.actions['SESSION'].action(msg)
 
-        if msg['metadata']['message_type'] != 'notification': return
+            if msg['metadata']['message_type'] != 'notification': return
 
-        message_list = []
-        message = msg['payload']['event']['message']
-        if type(message) == dict:
-            message = message['text']
+            message_list = []
+            message = msg['payload']['event']['message']
+            if type(message) == dict:
+                message = message['text']
 
-        message_parts = message.split()
-        last_action = None
-        last_key = None
-        last_ind = 0
+            message_parts = message.split()
+            last_action = None
+            last_key = None
+            last_ind = 0
 
-        for i, sub_message in enumerate(message_parts):
-            if len(sub_message.strip()) == 0: continue
+            for i, sub_message in enumerate(message_parts):
+                if len(sub_message.strip()) == 0: continue
 
-            for action in self.actions.values():
-                key = action.validate(msg, sub_message)
-                if bool(key):
-                    if last_action is None: last_action = action
-                    if last_key is None: last_key = key
+                for action in self.actions.values():
+                    key = action.validate(msg, sub_message)
+                    if bool(key):
+                        if last_action is None: last_action = action
+                        if last_key is None: last_key = key
 
-                    if last_action != action or (last_key != key and key != action.default_value) or key[0] == self.config['DEFAULT']['split_text']:
-                        msg['sub_message'] = ' '.join(message_parts[last_ind:i])
-                        msg_obj = last_action.action(msg)
-                        if bool(msg_obj):
-                            message_list.append(msg_obj)
+                        if last_action != action or (last_key != key and key != action.default_value) or key[0] == self.config['DEFAULT']['split_text']:
+                            msg['sub_message'] = ' '.join(message_parts[last_ind:i])
+                            msg_obj = last_action.action(msg)
+                            if bool(msg_obj):
+                                message_list.append(msg_obj)
 
-                        last_action = action
-                        last_key = key
-                        last_ind = i
-                        break
+                            last_action = action
+                            last_key = key
+                            last_ind = i
+                            break
 
-        # final section of message
-        if bool(last_action):
-            msg['sub_message'] = ' '.join(message_parts[last_ind:])
-            msg_obj = last_action.action(msg)
-            if bool(msg_obj):
-                message_list.append(msg_obj)
+            # final section of message
+            if bool(last_action):
+                msg['sub_message'] = ' '.join(message_parts[last_ind:])
+                msg_obj = last_action.action(msg)
+                if bool(msg_obj):
+                    message_list.append(msg_obj)
 
-        if len(message_list) > 0:
-            self.tts_text.append({
-                'user_name': msg['payload']['event']['user_name'],
-                'message': message
-            })
+            if len(message_list) > 0:
+                self.tts_text.append({
+                    'user_name': msg['payload']['event']['user_name'],
+                    'message': message
+                })
 
-        self.gen_queue.put(lambda: self.generate(message_list))
+            self.gen_queue.put(message_list)
+        except Exception as e:
+            print(f'Unable to handle inbound WS message: {e}')
 
                 
     def on_error(self, ws, msg):
@@ -309,13 +279,16 @@ class ttsController:
 
     async def auth(self):
         # Just use pre-built twitch auth
-        twitch = await Twitch(self.config['DEFAULT']['TwitchAppId'], self.config['DEFAULT']['TwitchAppSecret'])
+        if bool(self.config['DEFAULT']['TwitchAppId']) and bool(self.config['DEFAULT']['TwitchAppSecret']):
+            twitch = await Twitch(self.config['DEFAULT']['TwitchAppId'], self.config['DEFAULT']['TwitchAppSecret'])
 
-        auth = UserAuthenticator(twitch, ttsController.USER_SCOPE)
-        self.token, self.refresh_token = await auth.authenticate()
+            auth = UserAuthenticator(twitch, ttsController.USER_SCOPE)
+            self.token, self.refresh_token = await auth.authenticate()
 
-        with open(os.path.join(self.config['DEFAULT']['OutputDir'], "credentials.json"), 'w') as f:
-            json.dump({'token': self.token, 'refresh': self.refresh_token}, f)
+            with open(os.path.join(self.config['DEFAULT']['OutputDir'], "credentials.json"), 'w') as f:
+                json.dump({'token': self.token, 'refresh': self.refresh_token}, f)
+        else:
+            print("Cannot run authorization")
 
     async def reauth(self):
         print("Attempting to refresh access token")
@@ -342,22 +315,18 @@ class ttsController:
                     'Content-Type': 'application/json'
                 }
 
-                broad_request = requests.get(f"{ttsController.URI}/users?user_login={self.config['DEFAULT']['TargetChannel']}",
-                                             headers=self.headers)
+                broad_request = requests.get(f"{ttsController.URI}/users?user_login={self.config['DEFAULT']['TargetChannel']}", headers=self.headers)
                 self.broadcaster = broad_request.json()
-
                 print(self.broadcaster)
 
-        # Create the socket for threading
-        if not self.wsapp:
-            print('Creating websocket')
+        # Create the app for twitch message processing
+        if not self.ws_app:
+            print('Creating twitch websocket')
             websocket.setdefaulttimeout(10)
-            self.wsapp = websocket.WebSocketApp(ttsController.WS_ENDPOINT,
-                                                on_open=self.on_open, on_message=self.on_message,
-                                                on_error=self.on_error, on_close=self.on_close)
-
-    # Config
-    def save_config(self):
-        print("Saving config")
-        with open('config.ini', 'w') as configfile:
-            self.config.write(configfile)
+            self.ws_app = websocket.WebSocketApp(
+                ttsController.WS_ENDPOINT,
+                on_open=self.on_open,
+                on_message=self.on_message,
+                on_error=self.on_error,
+                on_close=self.on_close
+            )

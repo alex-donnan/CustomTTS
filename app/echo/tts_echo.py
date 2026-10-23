@@ -20,6 +20,9 @@ class ttsEcho:
 		# check for cuda
 		self.device = "cuda" if torch.cuda.is_available() else "cpu"
 		print(f"Using device: {self.device}")
+		if self.device == 'cpu':
+			print('Warning : Echo does not run correctly without CUDA (currently).')
+			print('Echo will be pre-emptively disabled at this time. You can enable with a warning, it may not work as expected.')
 
 		# load local inf models
 		self.model = load_model(
@@ -54,6 +57,8 @@ class ttsEcho:
 			sequence_length=640, # (~30 seconds)
 		)
 
+		print('Echo: Loaded models and PCA state')
+
 		self.speaker_samples = eval(self.app.config['AI']['speakers'])
 		self.speaker_audio = {}
 		for speaker in self.speaker_samples.keys():
@@ -61,8 +66,6 @@ class ttsEcho:
 			if self.device == "cuda":
 				audio.cuda()
 			self.speaker_audio[speaker] = audio
-
-		print('Echo: Loaded models and PCA state')
 		print(f'Echo: Loaded {len(self.speaker_audio)} voices')
 
 	def unload_models(self):

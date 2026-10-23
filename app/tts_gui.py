@@ -135,24 +135,106 @@ class ttsGui():
                         [
                             sg.Text('Twitch Secret ID:'),
                             sg.Input(default_text=self.app.config['DEFAULT']['twitchappsecret'], password_char='*', key='APPSECRET')
+                        ],
+                        [
+                            sg.Text('Action Trigger Value:'),
+                            sg.Input(default_text=self.app.config['DEFAULT']['split_text'], key='SPLIT_TEXT')
                         ]
                     ]),
                     sg.Tab('AI', [
                         [
-                            sg.Checkbox(text='Active:', key='AI_ACTIVE')
+                            sg.Checkbox(text='Active', key='AI_ACTIVE', default=self.app.config['AI'].getboolean('active'))
+                        ],
+                        [ sg.HorizontalSeparator() ],
+                        [ sg.Text('Cost (must be more than 0 to activate):') ],
+                        [
+                            sg.Text('Bits:'),
+                            sg.Push(),
+                            sg.Input(key='AI_BITS', default_text=self.app.actions['AI'].costs['bits'])
                         ],
                         [
-                            sg.Text('Cost (must be more than 0 to activate):')
+                            sg.Text('Donations (WIP):'),
+                            sg.Push(),
+                            sg.Input(key='AI_DONO', default_text=self.app.actions['AI'].costs['donations'])
+                        ],
+                        [
+                            sg.Text('Subscriptions:'),
+                            sg.Push(),
+                            sg.Input(key='AI_SUBS', default_text=self.app.actions['AI'].costs['subscriptions'])
                         ]
                     ]),
                     sg.Tab('Lute', [
-
-                    ]),
-                    sg.Tab('TTS', [
-
+                        [
+                            sg.Checkbox(text='Active', key='LUTE_ACTIVE', default=self.app.config['LUTE'].getboolean('active'))
+                        ],
+                        [
+                            sg.Checkbox(text='Pause Music (attempts to pause background music on Windows)', key='LUTE_PAUSEMUSIC', default=self.app.config['LUTE'].getboolean('pause_music'))
+                        ],
+                        [ sg.HorizontalSeparator() ],
+                        [ sg.Text('Cost (must be more than 0 to activate):') ],
+                        [
+                            sg.Text('Bits:'),
+                            sg.Push(),
+                            sg.Input(key='LUTE_BITS', default_text=self.app.actions['LUTE'].costs['bits'])
+                        ],
+                        [
+                            sg.Text('Donations (WIP):'),
+                            sg.Push(),
+                            sg.Input(key='LUTE_DONO', default_text=self.app.actions['LUTE'].costs['donations'])
+                        ],
+                        [
+                            sg.Text('Subscriptions:'),
+                            sg.Push(),
+                            sg.Input(key='LUTE_SUBS', default_text=self.app.actions['LUTE'].costs['subscriptions'])
+                        ]
                     ]),
                     sg.Tab('Sound', [
-
+                        [
+                            sg.Checkbox(text='Active', key='SOUND_ACTIVE', default=self.app.config['SOUND'].getboolean('active'))
+                        ],
+                        [ sg.HorizontalSeparator() ],
+                        [ sg.Text('Cost (must be more than 0 to activate):') ],
+                        [
+                            sg.Text('Bits:'),
+                            sg.Push(),
+                            sg.Input(key='SOUND_BITS', default_text=self.app.actions['SOUND'].costs['bits'])
+                        ],
+                        [
+                            sg.Text('Donations (WIP):'),
+                            sg.Push(),
+                            sg.Input(key='SOUND_DONO', default_text=self.app.actions['SOUND'].costs['donations'])
+                        ],
+                        [
+                            sg.Text('Subscriptions:'),
+                            sg.Push(),
+                            sg.Input(key='SOUND_SUBS', default_text=self.app.actions['SOUND'].costs['subscriptions'])
+                        ]
+                    ]),
+                    sg.Tab('TTS', [
+                        [
+                            sg.Checkbox(text='Active', key='TTS_ACTIVE', default=self.app.config['TTS'].getboolean('active'))
+                        ],
+                        [
+                            sg.Text('StreamElements Key:'),
+                            sg.Input(default_text=self.app.config['TTS']['streamelementskey'], password_char='*', key='STREAMELEMENTSKEY')
+                        ],
+                        [ sg.HorizontalSeparator() ],
+                        [ sg.Text('Cost (must be more than 0 to activate):') ],
+                        [
+                            sg.Text('Bits:'),
+                            sg.Push(),
+                            sg.Input(key='TTS_BITS', default_text=self.app.actions['TTS'].costs['bits'])
+                        ],
+                        [
+                            sg.Text('Donations (WIP):'),
+                            sg.Push(),
+                            sg.Input(key='TTS_DONO', default_text=self.app.actions['TTS'].costs['donations'])
+                        ],
+                        [
+                            sg.Text('Subscriptions:'),
+                            sg.Push(),
+                            sg.Input(key='TTS_SUBS', default_text=self.app.actions['TTS'].costs['subscriptions'])
+                        ]
                     ]),
                 ]], expand_x=True, expand_y=True)
             ],
@@ -212,10 +294,9 @@ class ttsGui():
             # Standard operations
             if event in (None, sg.WINDOW_CLOSED, 'Quit', 'Exit'):
                 # Clean the outputs, if they got saved or crash
-                self.clear_queue()
                 bg.stop()
-                self.app.echo.unload_models()
-                print('Closing app.')
+                self.clear_queue()
+                self.app.shutdown()
                 break
 
             # Twitch chat commands
@@ -229,15 +310,18 @@ class ttsGui():
             # App operations
             if event in ('CONNECT', 'USERNAME_Enter'):
                 if values['USERNAME'] != '':
-                    try:
-                        # Start workers and websocket
-                        self.app.config.set('DEFAULT', 'TargetChannel', values['USERNAME'])
-                        self.app.save_config()
-                        asyncio.run(self.app.auth())
-                    except Exception as ex:
-                        sg.popup(f'Failed to connect to user. Please try again: {ex}', title='Connection Failed')
+                    if self.app.config['DEFAULT']['twitchappid'] == '' or self.app.config['DEFAULT']['twitchappsecret'] == '':
+                        sg.popup('You must enter a Twitch App ID and Twitch App Secret in the config tab.', title='Missing Data')
+                    else:
+                        try:
+                            # Start workers and websocket
+                            self.app.config.set('DEFAULT', 'TargetChannel', values['USERNAME'])
+                            self.app.save_config()
+                            asyncio.run(self.app.auth())
+                        except Exception as ex:
+                            sg.popup(f'Failed to connect to user. Please try again: {ex}', title='Connection Failed')
                 else:
-                    sg.popup(f'You must enter a Twitch Username', title='Missing Data')
+                    sg.popup('You must enter a Twitch Username', title='Missing Data')
             elif event in ('MUTE_LUTE', 'MUTE_TTS', 'MUTE_AI', 'MUTE_SOUND'):
                 action_type = event.split('_')[1]
                 action_active = self.app.config[action_type].getboolean('active')
@@ -275,15 +359,63 @@ class ttsGui():
                             }
                         }
                     }, indent=4)
-                    self.app.on_message(self.app.wsapp, data)
+                    self.app.on_message(self.app.ws_app, data)
                     self.window['MSG'].update('')
+
+            # big config save and update
+            elif event == 'SAVECONFIG':
+                self.app.config.set('DEFAULT', 'outputdir', values['OUTPUTDIR'])
+                self.app.config.set('DEFAULT', 'modeldir', values['MODELDIR'])
+                self.app.config.set('DEFAULT', 'assetsdir', values['ASSETSDIR'])
+                self.app.config.set('DEFAULT', 'twitchappid', values['APPID'])
+                self.app.config.set('DEFAULT', 'twitchappsecret', values['APPSECRET'])
+                self.app.config.set('DEFAULT', 'split_text', values['SPLIT_TEXT'])
+
+                self.app.config.set('AI', 'active', str(values['AI_ACTIVE']))
+                if self.app.config['AI'].getboolean('active') and self.app.echo.device == 'cpu':
+                    sg.popup('Be advised - Echo does not always work as expected when CUDA is not available. You are currently using CPU.', title='Echo CPU Warning')
+                self.app.actions['AI'].costs =  {
+                    'bits': int(values['AI_BITS']),
+                    'donations': int(values['AI_DONO']),
+                    'subscriptions': int(values['AI_SUBS']),
+                }
+                self.app.config.set('AI', 'costs', json.dumps(self.app.actions['AI'].costs))
+
+
+                self.app.config.set('LUTE', 'active', str(values['LUTE_ACTIVE']))
+                self.app.actions['LUTE'].costs = {
+                    'bits': int(values['LUTE_BITS']),
+                    'donations': int(values['LUTE_DONO']),
+                    'subscriptions': int(values['LUTE_SUBS']),
+                }
+                self.app.config.set('LUTE', 'costs', json.dumps(self.app.actions['LUTE'].costs))
+                self.app.config.set('LUTE', 'pause_music', str(values['LUTE_PAUSEMUSIC']))
+
+                self.app.config.set('SOUND', 'active', str(values['SOUND_ACTIVE']))
+                self.app.actions['SOUND'].costs = {
+                    'bits': int(values['SOUND_BITS']),
+                    'donations': int(values['SOUND_DONO']),
+                    'subscriptions': int(values['SOUND_SUBS']),
+                }
+                self.app.config.set('SOUND', 'costs', json.dumps(self.app.actions['SOUND'].costs))
+
+                self.app.config.set('TTS', 'active', str(values['TTS_ACTIVE']))
+                self.app.actions['TTS'].costs = {
+                    'bits': int(values['TTS_BITS']),
+                    'donations': int(values['TTS_DONO']),
+                    'subscriptions': int(values['TTS_SUBS']),
+                }
+                self.app.config.set('TTS', 'costs', json.dumps(self.app.actions['TTS'].costs))
+                self.app.config.set('TTS', 'streamelementskey', values['STREAMELEMENTSKEY'])
+
+                self.app.save_config()
 
             # samples
             elif event == 'LOADSAMPLE':
                 file = sg.popup_get_file('Select the voice sample .wav sound you would like to add. Ideally 15-30 seconds:', title='Voice Cloning Device 42069', file_types=(('Acceptable Files', '*.wav'), ('Other Filthy File Types', '*.*')))
                 if file:
                     shutil.copy(file, self.app.config['AI']['samplesdir'] + file.split('/')[-1])
-                    self.window['SAMPLES_LIST'].update(values=[s for s in os.listdir(self.app.config['AI']['samplesdir'])]);
+                    self.window['SAMPLE_LIST'].update(values=[s for s in os.listdir(self.app.config['AI']['samplesdir'])]);
 
             elif event == 'ADDVOICE':
                 if values['SAMPLEKEY'] != '' and self.window['SAMPLE_LIST'].get() != '':
@@ -297,6 +429,7 @@ class ttsGui():
                         self.app.config.set('AI', 'speakers', str(self.app.speaker_list))
                         self.app.save_config()
                         self.app.echo.add_speaker(values['SAMPLEKEY'], self.window['SAMPLE_LIST'].get())
+                        self.app.actions['AI'].keywords = list(self.app.speaker_list)
                 else:
                     sg.popup('You\'re missing either a keyword or sound selection.', title='Sound Error')
 
@@ -307,6 +440,7 @@ class ttsGui():
                 self.window['SAMPLES_KEYS'].update([f'{key}: {self.app.speaker_list[key]}' for key in self.app.speaker_list.keys()])
                 self.app.config.set('AI', 'speakers', str(self.app.speaker_list))
                 self.app.save_config()
+                self.app.actions['AI'].keywords = list(self.app.speaker_list)
 
             # sound effects
             elif event == 'LOADSOUND' or event == 'FILE':
@@ -326,6 +460,7 @@ class ttsGui():
                         self.window['SOUNDS_KEYS'].update([f'{key}: {self.app.sound_list[key]}' for key in self.app.sound_list.keys()])
                         self.app.config.set('SOUND', 'sounds', str(self.app.sound_list))
                         self.app.save_config()
+                        self.app.actions['SOUND'].keywords = list(self.app.sound_list)
                 else:
                     sg.popup('You\'re missing either a keyword or sound selection.', title='Sound Error')
 
@@ -336,11 +471,12 @@ class ttsGui():
                 self.window['SOUNDS_KEYS'].update([f'{key}: {self.app.sound_list[key]}' for key in self.app.sound_list.keys()])
                 self.app.config.set('SOUND', 'sounds', str(self.app.sound_list))
                 self.app.save_config()
+                self.app.actions['SOUND'].keywords = list(self.app.sound_list)
 
             # timeout issues
             elif event == sg.TIMEOUT_EVENT:
                 try:
-                    if self.app.wsapp:
+                    if self.app.ws_app:
                         self.status = './assets/green.png' if self.app.connected else './assets/red.png'
                         self.window['STATUS'].update(self.status)
                         self.window['CONNECT'].update(disabled=True)
@@ -374,7 +510,7 @@ class ttsGui():
 
                         # Disconnected? Try to connect
                         if not self.app.connected:
-                            self.app.wsapp = None
+                            self.app.ws_app = None
                             asyncio.run(self.app.reauth())
                     else:
                         # Start workers and websocket
@@ -383,7 +519,7 @@ class ttsGui():
                             self.window['CONNECT'].update(disabled=True)
                             self.window['USERNAME'].update(disabled=True)
                             asyncio.run(self.app.run())
-                            self.socket = threading.Thread(target=self.app.wsapp.run_forever, daemon=True)
+                            self.socket = threading.Thread(target=self.app.ws_app.run_forever, daemon=True)
                             if self.socket and not self.socket.is_alive():
                                 self.socket.start()
                         elif self.app.config['DEFAULT']['targetchannel'] not in (None, ''):

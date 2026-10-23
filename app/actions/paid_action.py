@@ -11,17 +11,17 @@ class paidAction(appAction):
 		self.config = config
 		self.name = name
 		self.costs = eval(self.config[self.name]['costs'])
-		self.event_costs = {
-			'channel.subscription.gift': self.costs['subscriptions'],
-			'channel.subscription.message': self.costs['subscriptions'],
-			'channel.cheer': self.costs['bits'],
+		self.event_names = {
+			'channel.subscription.gift': 'subscriptions',
+			'channel.subscription.message': 'subscriptions',
+			'channel.cheer': 'bits',
 		}
 		self.post_init()
 
 	def validate(self, msg, text) -> str | None:
 		if msg['metadata']['message_type'] == 'notification' and \
 			msg['payload']['subscription']['type'] != 'channel.chat.message' and \
-			self.event_costs[msg['payload']['subscription']['type']] <= msg['payload']['subscription']['cost'] and \
+			int(self.costs[self.event_names[msg['payload']['subscription']['type']]]) <= msg['payload']['subscription']['cost'] and \
 			(self.default or (text[0] == self.config['DEFAULT']['split_text'] and text.split(' ')[0][1:].lower() in self.keywords)):
 
 			if self.default and text.split(' ')[0][1:].lower() not in self.keywords:
