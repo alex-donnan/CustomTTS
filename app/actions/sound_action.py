@@ -6,18 +6,23 @@ import requests
 import shutil
 
 class soundAction(paidAction):
-	def generate(self, msg):
-		if self.config['FLAGS']['clear']: return msg
+	def post_init(self):
+		self.keywords = list(self.app.sound_list)
 
-		voice = msg['message'].split(' ')[0]
+	def generate(self, msg):
+		if not self.config[self.name].getboolean('active'): return msg
+
+		sound = msg['message'].split(' ')[0][1:]
 		output_file = f"{self.config['DEFAULT']['outputdir']}{self.generate_fname()}.wav"
 		
 		# Dear god forgive me for this sin
-		if voice in self.app.sound_list:
-			shutil.copy(os.path.join(self.config['DEFAULT']['assetdir'], self.app.sound_list[voice]), output_file)
+		try:
+			shutil.copy(os.path.join(self.config['SOUND']['soundsdir'], self.app.sound_list[sound]), output_file)
 
 			#Put the file in the play queue
-			print(f'New file for {voice}: { msg["message"]}: {output_file}')
+			print(f'New file for {sound}: { msg["message"]}: {output_file}')
 			msg['filename'] = output_file
+		except Exception as e:
+			print(f'Sound failed to pass to file: {e}')
 
 		return msg

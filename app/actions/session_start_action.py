@@ -5,11 +5,9 @@ import requests
 
 class sessionStartAction(appAction):
 	def validate(self, msg, text=""):
-		print("Valid session")
 		return msg['metadata']['message_type'] == 'session_welcome'
 
 	def action(self, msg):
-		print("action sessions")
 		# session variables
 		session_id = msg['payload']['session']['id']
 

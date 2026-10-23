@@ -3,6 +3,7 @@ from tts_utils import *
 
 class paidAction(appAction):
 	default = False
+	default_value = ''
 	keywords = []
 
 	def __init__(self, app, config, name):
@@ -15,16 +16,19 @@ class paidAction(appAction):
 			'channel.subscription.message': self.costs['subscriptions'],
 			'channel.cheer': self.costs['bits'],
 		}
+		self.post_init()
 
-	def validate(self, msg, text):
-		if not self.config[self.name].getboolean('active'): return False
-
+	def validate(self, msg, text) -> str | None:
 		if msg['metadata']['message_type'] == 'notification' and \
 			msg['payload']['subscription']['type'] != 'channel.chat.message' and \
 			self.event_costs[msg['payload']['subscription']['type']] <= msg['payload']['subscription']['cost'] and \
-			(self.default or text.split(' ')[0] in self.keywords):
-			return True
-		return False
+			(self.default or (text[0] == self.config['DEFAULT']['split_text'] and text.split(' ')[0][1:].lower() in self.keywords)):
+
+			if self.default and text.split(' ')[0][1:].lower() not in self.keywords:
+				return self.default_value
+			
+			return text.split(' ')[0].lower()
+		return None
 
 	def action(self, msg):
 		message = {}
@@ -32,20 +36,20 @@ class paidAction(appAction):
 			message = {
 				'type': self.name,
 				'user_name': msg['payload']['event']['user_name'],
-				'message': f"{msg['payload']['event']['total']} Gifted Sub{'' if msg['payload']['event']['total'] == 1 else 's'}",
+				'message': f"{msg['payload']['event']['total']} Gifted Sub{'' if msg['payload']['event']['total'] == 1 else 's'} : {msg['sub_message']}",
 				'no_message': True
 			}
 		elif msg['payload']['subscription']['type'] == 'channel.subscription.message':
 			message = {
 				'type': self.name,
 				'user_name': msg['payload']['event']['user_name'],
-				'message': msg['payload']['event']['message']['text']
+				'message': msg['sub_message']
 			}
 		elif msg['payload']['subscription']['type'] == 'channel.cheer':
 			message = {
 				'type': self.name,
 				'user_name': msg['payload']['event']['user_name'],
-				'message': msg['payload']['event']['message']
+				'message': msg['sub_message']
 			}
 
 		message['message'] = remove_cheermotes(message['message'])

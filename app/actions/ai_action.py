@@ -2,25 +2,23 @@ from .paid_action import paidAction
 from tts_utils import *
 
 class aiAction(paidAction):
+	def post_init(self):
+		self.keywords = list(self.app.speaker_list)
+
 	def generate(self, msg):
-		if self.config['FLAGS'].getBoolean('clear'): return msg
+		if not self.config[self.name].getboolean('active'): return msg
 
 		output_file = f"{self.config['DEFAULT']['outputdir']}{self.generate_fname()}.wav"
-		voice = msg['message'].split(' ')[0]
+		voice = msg['message'].split(' ')[0][1:]
 		message = msg['message']
 
-		if voice in self.app.speaker_list.keys() and self.app.speaker_list[voice]['model'] in self.app.tts_synth.keys():
+		if voice not in self.app.echo.speaker_audio.keys():
 			message = convert_numbers(message)
 			message = replace_emoji(message)
 
-			# Generate
-			self.app.tts_synth[self.app.speaker_list[voice]['model']] \
-				.save_wav(self.app.tts_synth[self.app.speaker_list[voice]['model']]
-					.tts(message, speaker_name=self.app.speaker_list[voice]['speaker'], language_name='en'),
-					output_file
-				)
-
-			# Put the file in the play queue
-			print(f'New file for {voice}: {message}: {output_file}')
-			msg['filename'] = output_file
+			if self.app.echo.generate(voice, message, output_file):
+				print(f'New file for {voice}: {message}: {output_file}')
+				msg['filename'] = output_file
+			else:
+				print(f'Echo failed to generate')
 		return msg

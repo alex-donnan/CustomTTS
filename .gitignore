@@ -9,3 +9,4 @@ tmp/
 testing/
 */__pycache__/
 .venv/
+*.safetensors

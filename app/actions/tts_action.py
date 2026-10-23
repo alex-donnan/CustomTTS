@@ -6,6 +6,7 @@ import urllib
 
 class ttsAction(paidAction):
 	default = True
+	default_value = 'brian'
 	voices = {
 		'brian': 'Brian',
 		'ivy': 'Ivy',
@@ -22,24 +23,33 @@ class ttsAction(paidAction):
 	keywords = voices.keys()
 
 	def generate(self, msg):
-		if self.config['FLAGS'].getboolean('clear'): return msg
+		if not self.config[self.name].getboolean('active'): return msg
 
 		output_file = f"{self.config['DEFAULT']['outputdir']}{self.generate_fname()}.mp3"
-		voice = msg['message'].split(' ')[0]
+		voice = msg['message'].split(' ')[0][1:]
+		message = msg['message']
 		if voice in self.keywords:
 			voice = self.voices[voice]
+			message = msg['message'][len(voice)+1:]
 		else:
 			voice = 'Brian'
-		message = msg['message']
 
-		# Do Brian
-		url = f"https://api.streamelements.com/kappa/v2/speech?voice={urllib.parse.quote(voice)}&text={urllib.parse.quote(message)}&key={self.config[self.name]['streamelementskey']}"
-		data = requests.get(url)
-		with open(output_file, 'wb') as f:
-			f.write(data.content)
+		try:
+			# Do Brian
+			url = "https://api.streamelements.com/kappa/v2/speech"
+			data = requests.get(url, params={
+				'voice': voice,
+				'text': message,
+				'key': self.config['TTS']['streamelementskey']
+			})
 
-		# Put the file in the play queue
-		print(f'New file for {voice}: {message}: {output_file}')
-		msg['filename'] = output_file
+			with open(output_file, 'wb') as f:
+				f.write(data.content)
+
+			# Put the file in the play queue
+			print(f'New file for {voice}: {message}: {output_file}')
+			msg['filename'] = output_file
+		except Exception as e:
+			print(f'TTS failed to generate: {e}')
 
 		return msg
