@@ -9,7 +9,7 @@ import time
 import torch
 import torchaudio
 
-def load_model(path: str, repo_id: str = "jordand/echo-tts-base", device: str = "cuda", dtype: torch.dtype | None = torch.bfloat16, compile: bool = False, token: str | None = None, delete_blockwise_modules: bool = False) -> EchoDiT:
+def load_model(path: str, device: str = "cuda", dtype: torch.dtype | None = torch.bfloat16, compile: bool = False, token: str | None = None, delete_blockwise_modules: bool = False) -> EchoDiT:
 	with torch.device("meta"):
 		model = EchoDiT(
 			latent_size=80, model_size=2048, num_layers=24, num_heads=16,
@@ -20,7 +20,7 @@ def load_model(path: str, repo_id: str = "jordand/echo-tts-base", device: str = 
 			speaker_num_heads=10, speaker_intermediate_size=3328,
 			timestep_embed_size=512, adaln_rank=256,
 		)
-	state = st.load_file(path, device="cpu")
+	state = st.load_file(path, device=device)
 
 	if delete_blockwise_modules:
 		state = {k: v for k, v in state.items() if not (
@@ -56,7 +56,7 @@ def load_fish_ae(path: str, device: str = "cuda", dtype: torch.dtype | None = to
 		fish_ae = build_ae()
 
 	if dtype is not None and dtype != torch.float32:
-		state = st.load_file(path, device="cpu")
+		state = st.load_file(path, device=device)
 		state = {k: v.to(dtype=dtype) for k, v in state.items()}
 		state = {k: v.to(device=device) for k, v in state.items()}
 		fish_ae.load_state_dict(state, strict=False, assign=True)

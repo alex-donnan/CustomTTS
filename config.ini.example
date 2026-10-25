@@ -1,4 +1,4 @@
-[DEFAULT]
+[GENERAL]
 targetchannel = 
 outputdir = ./tmp/
 modeldir = ./models/

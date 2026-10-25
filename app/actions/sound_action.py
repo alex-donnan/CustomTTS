@@ -7,17 +7,17 @@ import shutil
 
 class soundAction(paidAction):
 	def post_init(self):
-		self.keywords = list(self.app.sound_list)
+		self.keywords = list(self.config['SOUND']['sounds'])
 
 	def generate(self, msg):
-		if not self.config[self.name].getboolean('active'): return msg
+		if not self.config[self.name]['active']: return msg
 
 		output_file =  f"{msg['filename']}.wav"
 		sound = msg['message'].split(' ')[0][1:].lower()
 		
-		# Dear god forgive me for this sin
+		# Copy soundfile
 		try:
-			shutil.copy(os.path.join(self.config['SOUND']['soundsdir'], self.app.sound_list[sound]), output_file)
+			shutil.copy(os.path.join(self.config['SOUND']['soundsdir'], self.config['SOUND']['sounds'][sound]), output_file)
 
 			#Put the file in the play queue
 			print(f'New file for {sound}: { msg["message"]}: {output_file}')

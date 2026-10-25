@@ -7,6 +7,8 @@ from .inference import (
 	sample_euler_cfg_independent_guidances
 )
 from functools import partial
+
+import configparser
 import gc
 import json
 import time
@@ -14,8 +16,8 @@ import torchaudio
 import torch
 
 class ttsEcho:
-	def __init__(self, app):
-		self.app = app
+	def __init__(self, config):
+		self.config = config
 
 		# check for cuda
 		self.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -25,6 +27,7 @@ class ttsEcho:
 			print('Echo will be pre-emptively disabled at this time. You can enable with a warning, it may not work as expected.')
 
 		# load local inf models
+		# this uses share_memory_() to pass to other processes
 		self.model = load_model(
 			path="./echo/models/echo/pytorch_model.safetensors",
 			delete_blockwise_modules=True,
@@ -59,10 +62,10 @@ class ttsEcho:
 
 		print('Echo: Loaded models and PCA state')
 
-		self.speaker_samples = eval(self.app.config['AI']['speakers'])
+		self.speaker_samples = self.config['AI']['speakers']
 		self.speaker_audio = {}
 		for speaker in self.speaker_samples.keys():
-			audio = load_audio(self.app.config['AI']['samplesdir'] + self.speaker_samples[speaker])
+			audio = load_audio(self.config['AI']['samplesdir'] + self.speaker_samples[speaker])
 			if self.device == "cuda":
 				audio.cuda()
 			self.speaker_audio[speaker] = audio
@@ -81,22 +84,21 @@ class ttsEcho:
 			torch.cuda.ipc_collect()
 
 	def add_speaker(self, name, filename):
-		self.speaker_samples[name] = self.app.config['AI']['samplesdir'] + filename
-		if name not in self.speaker_audio.keys():
+		self.speaker_samples[name] = self.config['AI']['samplesdir'] + filename
+		if name not in self.speaker_audio:
 			audio = load_audio(self.speaker_samples[name])
 			if self.device == "cuda":
 				audio.cuda()
 			self.speaker_audio[name] = audio
 
 	def remove_speaker(self, name):
-		if name in self.speaker_samples.keys():
+		if name in self.speaker_samples:
 			del self.speaker_samples[name]
 
-		if name in self.speaker_audio.keys():
+		if name in self.speaker_audio:
 			del self.speaker_audio[name]
 
-		self.app.config.set('AI', 'speakers', json.dumps(self.speaker_samples))
-		self.app.save_config()
+		self.config['AI']['speakers'] = json.dumps(self.speaker_samples)
 
 	def generate(self, name, text, filename):
 		if text[0:4] != '[S1]':

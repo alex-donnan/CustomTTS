@@ -22,7 +22,7 @@ class ttsAction(paidAction):
 	keywords = voices.keys()
 
 	def generate(self, msg):
-		if not self.config[self.name].getboolean('active'): return msg
+		if not self.config[self.name]['active']: return msg
 
 		output_file = f"{msg['filename']}.mp3"
 		voice = msg['message'].split(' ')[0][1:].lower()

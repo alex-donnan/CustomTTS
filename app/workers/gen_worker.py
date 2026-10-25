@@ -1,14 +1,14 @@
-import configparser
+from actions import *
+
 import queue
 import torch.multiprocessing as mp
 
 class genWorker(mp.Process):
-	def __init__(self, gen_queue, tts_queue, actions):
+	def __init__(self, gen_queue, tts_queue, config, actions):
 		mp.Process.__init__(self)
-		self.config = configparser.ConfigParser()
-		self.config.read('config.ini')
 		self.gen_queue = gen_queue
 		self.tts_queue = tts_queue
+		self.config = config
 		self.actions = actions
 
 	def run(self):

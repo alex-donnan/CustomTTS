@@ -4,37 +4,32 @@ from tts_utils import *
 class chatAction(appAction):
 	def post_inist(self):
 		self.commands = {
-			'!skip': (lambda: self.app.config.set('FLAGS', 'skip', str(True))),
-			'!pause': (lambda: self.app.config.set('FLAGS', 'pause', str(True))),
-			'!resume': (lambda: self.app.config.set('FLAGS', 'pause', str(False))),
-			'!clear': (lambda: self.app.config.set('FLAGS', 'clear', str(True))),
-			'!pausetts': (lambda: self.app.config.set('TTS', 'active', str(False))),
-			'!resumetts': (lambda: self.app.config.set('TTS', 'active', str(True))),
-			'!pauseai': (lambda: self.app.config.set('AI', 'active', str(False))),
-			'!resumeai': (lambda: self.app.config.set('AI', 'active', str(True))),
-			'!pauselute': (lambda: self.app.config.set('LUTE', 'active', str(False))),
-			'!resumelute': (lambda: self.app.config.set('LUTE', 'active', str(True))),
-			'!pausesound': (lambda: self.app.config.set('SOUND', 'active', str(False))),
-			'!resumesound': (lambda: self.app.config.set('SOUND', 'active', str(True)))
+			'!skip': (lambda: self.config['FLAGS'].update({'skip': True})),
+			'!pause': (lambda: self.config['FLAGS'].update({'pause': True})),
+			'!resume': (lambda: self.config['FLAGS'].update({'pause': False})),
+			'!clear': (lambda: self.config['FLAGS'].update({'clear': True})),
+			'!pausetts': (lambda: self.config['TTS'].update({'active': False})),
+			'!resumetts': (lambda: self.config['TTS'].update({'active': True})),
+			'!pauseai': (lambda: self.config['AI'].update({'active': False})),
+			'!resumeai': (lambda: self.config['AI'].update({'active': True})),
+			'!pauselute': (lambda: self.config['LUTE'].update({'active': False})),
+			'!resumelute': (lambda: self.config['LUTE'].update({'active': True})),
+			'!pausesound': (lambda: self.config['SOUND'].update({'active': False})),
+			'!resumesound': (lambda: self.config['SOUND'].update({'active': True})),
 		}
 
 	def validate(self, msg, text):
-		if not self.config[self.name].getboolean('active'): return msg
-
 		if msg['metadata']['message_type'] == 'notification' and \
 			msg['payload']['subscription']['type'] == 'channel.chat.message' and \
-			msg['payload']['event']['message_type'] == 'text' and \
 			any(map(lambda badge: badge['set_id'] == 'moderator' or badge['set_id'] == 'broadcaster', msg['payload']['event']['badges'])) and \
-			any(key in text for key in self.commands.keys()):
-			return True
-		return False
+			any(key in text for key in self.commands):
+			return key
+		return None
 
 	def action(self, msg):
-		fn = self.commands.get(msg['payload']['event']['message']['text'].split(' ')[0])
-		if fn:
-			fn()
-			self.app.save_config()
+		text = msg['payload']['event']['message']['text']
+		if (key in text for key in self.commands):
+			self.commands[key]()
 
 	def generate(self, msg):
-		print("I don't do anything!")
 		return None

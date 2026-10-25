@@ -10,7 +10,7 @@ class luteAction(paidAction):
 		self.require_next = True
 
 	def generate(self, msg):
-		if self.config['FLAGS'].getboolean('clear'): return msg
+		if self.config['FLAGS']['clear']: return msg
 
 		user = msg['user_name']
 		output_file = f"{msg['filename']}.wav"

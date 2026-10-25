@@ -8,6 +8,7 @@ from echo import ttsEcho
 from tts_websocket import ttsWebsocket
 from workers import *
 
+import ast
 import configparser
 import json
 import os
@@ -29,7 +30,7 @@ class ttsController:
 	URI = 'https://api.twitch.tv/helix'
 	WS_ENDPOINT = 'wss://eventsub.wss.twitch.tv/ws' if not DEVMODE else 'ws://127.0.0.1:8080/ws'
 	SUBS_ENDPOINT = 'https://api.twitch.tv/helix/eventsub/subscriptions' if not DEVMODE else 'http://127.0.0.1:8080/eventsub/subscriptions'
-	SUBSCRIPTIONS = [
+	SUBSCRIPTION_LIST = [
 		'channel.subscription.message',
 		'channel.subscription.gift',
 		'channel.cheer',
@@ -37,9 +38,30 @@ class ttsController:
 	]
 
 	def __init__(self):
+		mp.set_start_method("spawn", force=True)
+
 		# config
-		self.config = configparser.ConfigParser()
-		self.config.read('config.ini')
+		self.process_manager = mp.Manager()
+		try:
+			self.process_manager.start()
+		except Exception as e:
+			print('Manager already running')
+		self.config_parser = configparser.ConfigParser()
+		self.config_parser.read('config.ini')
+		self.config = self.process_manager.dict()
+	
+		temp_config = {}
+		for section in self.config_parser.sections():
+			temp_config[section] = {}
+			for key, value in self.config_parser.items(section):
+				if value in ['True','False']:
+					temp_config[section][key] = eval(value)
+				elif value[0] == '{':
+					temp_config[section][key] = ast.literal_eval(value)
+				else:
+					temp_config[section][key] = value
+		
+		self.config.update(temp_config)
 
 		# twitch auth stuff
 		self.token = None
@@ -51,20 +73,25 @@ class ttsController:
 		self.broadcaster = {}
 		self.ws_app = None
 
+		# echo
+		self.echo = None
+		try:
+			self.echo = ttsEcho(self.config)
+		except Exception as e:
+			print(f'Failed to initialize Echo: {e}')
+
 		# visual details for frontend
-		self.speaker_list = eval(self.config['AI']['speakers'])
-		self.sound_list = eval(self.config['SOUND']['sounds'])
 		self.connected = False
 		self.text_list = []
 
 		# actions
+		self.session_start = sessionStartAction(self, 'SESSION')
 		self.actions = {
-			'SESSION': sessionStartAction(self, self.config, 'SESSION'),
-			'AI': aiAction(self, self.config, 'AI'),
-			'CHAT': chatAction(self, self.config, 'CHAT'),
-			'LUTE': luteAction(self, self.config, 'LUTE'),
-			'SOUND': soundAction(self, self.config, 'SOUND'),
-			'TTS': ttsAction(self, self.config, 'TTS'),
+			'AI': aiAction(self.config, 'AI', self.echo),
+			'CHAT': chatAction(self.config, 'CHAT'),
+			'LUTE': luteAction(self.config, 'LUTE'),
+			'SOUND': soundAction(self.config, 'SOUND'),
+			'TTS': ttsAction(self.config, 'TTS'),
 		}
 
 		# queues and processs for background work
@@ -72,16 +99,11 @@ class ttsController:
 		self.played_file = mp.Array('c', 256)
 		self.current_speaker = mp.Array('c', 256)
 
+		# workers (uninitialized)
 		self.gen_queue = mp.Queue()
 		self.tts_queue = mp.Queue()
-		self.gen_worker_process = genWorker(self.gen_queue, self.tts_queue, self.actions)
-		self.tts_worker_process = ttsWorker(self.tts_queue, self.played_file, self.current_speaker)
-		self.gen_worker_process.start()
-		self.tts_worker_process.start()
-
-
-		# ai controller
-		self.echo = ttsEcho(self)
+		self.gen_worker_process = genWorker(self.gen_queue, self.tts_queue, self.config, self.actions)
+		self.tts_worker_process = ttsWorker(self.tts_queue, self.config, self.played_file, self.current_speaker)
 
 		# websocket server
 		#self.websocket_server = ttsWebsocket()
@@ -89,34 +111,46 @@ class ttsController:
 		#	asyncio.run(self.websocket_server.start())
 		#self.websocket_process = mp.Process(target=run_server, daemon=True)
 
+	def start_workers(self):
+		self.gen_worker_process.start()
+		self.tts_worker_process.start()
+
 	# Config
 	def save_config(self):
-		with open('config.ini', 'w') as configfile:
-			self.config.write(configfile)
+		try:
+			with open('config.ini', 'w') as configfile:
+				self.config_parser.read_dict(dict(self.config))
+				self.config_parser.write(configfile)
+		except Exception as e:
+			print(f'Failed to write config file: {e}')
 
 	# Shutdown
 	def shutdown(self):
-		self.save_config()
 		self.gen_worker_process.terminate()
 		self.tts_worker_process.terminate()
 		#self.websocket_server.stop()
-		self.echo.unload_models()
 
+		for action in self.actions.values():
+			action.shutdown()
+
+		if bool(self.echo):
+			self.echo.unload_models()
+
+		self.save_config()
 		print("Shutting down")
 
 	# Twitch WebSocket event methods
 	def on_open(self, ws):
 		# update the color
-		self.config.set('FLAGS', 'clear', str(False))
+		self.config['FLAGS']['clear'] = False
 		print('Connected to Twitch')
 
 	def on_message(self, ws, msg):
-		self.connected = True
 		msg = json.loads(msg)
 
 		try:
 			if msg['metadata']['message_type'] == 'session_welcome':
-				self.actions['SESSION'].action(msg)
+				self.session_start.action(msg)
 
 			if msg['metadata']['message_type'] != 'notification': return
 
@@ -132,10 +166,15 @@ class ttsController:
 			filename = ''
 
 			for i, sub_message in enumerate(message_parts):
-				if len(sub_message.strip()) == 0: continue
+				if sub_message.strip() == '': continue
 
 				for action in self.actions.values():
-					if action == last_action and action.require_next and i-last_ind == 1: break
+					# Early escape for messages that require the next item after keyword
+					if bool(last_action) and \
+						action.name == last_action.name and \
+						action.require_next and \
+						i-last_ind == 1:
+						break
 
 					key = action.validate(msg, sub_message)
 					
@@ -145,12 +184,12 @@ class ttsController:
 
 						if last_action != action or \
 							(last_key != key and key != action.default_value) or \
-							key[0] == self.config['DEFAULT']['split_text']:
+							key[0] == self.config['GENERAL']['split_text']:
 							msg['sub_message'] = ' '.join(message_parts[last_ind:i])
 							msg_obj = last_action.action(msg)
 
 							if bool(msg_obj):
-								filename = f"{self.config['DEFAULT']['outputdir']}{uuid.uuid4()}"
+								filename = f"{self.config['GENERAL']['outputdir']}{uuid.uuid4()}"
 								msg_obj['filename'] = filename
 								message_list.append(msg_obj)
 
@@ -165,7 +204,7 @@ class ttsController:
 				msg_obj = last_action.action(msg)
 
 				if bool(msg_obj):
-					filename = f"{self.config['DEFAULT']['outputdir']}{uuid.uuid4()}"
+					filename = f"{self.config['GENERAL']['outputdir']}{uuid.uuid4()}"
 					msg_obj['filename'] = filename
 					message_list.append(msg_obj)
 
@@ -177,8 +216,12 @@ class ttsController:
 				})
 
 			self.gen_queue.put(message_list)
+			
+			# update status icon after it works
+			self.connected = True
 		except Exception as e:
 			print(f'Unable to handle inbound WS message: {e}')
+			print(f'Message: {msg}')
 
 				
 	def on_error(self, ws, msg):
@@ -194,18 +237,18 @@ class ttsController:
 	#Authentication
 	async def update_stored_creds(self, token, refresh):
 		print("Access token refreshed successfully")
-		with open(os.path.join(self.config['DEFAULT']['OutputDir'], "credentials.json"), 'w') as f:
+		with open(os.path.join(self.config['GENERAL']['outputdir'], "credentials.json"), 'w') as f:
 			json.dump({'token': token, 'refresh': refresh}, f)
 
 	async def auth(self):
 		# Just use pre-built twitch auth
-		if bool(self.config['DEFAULT']['TwitchAppId']) and bool(self.config['DEFAULT']['TwitchAppSecret']):
-			twitch = await Twitch(self.config['DEFAULT']['TwitchAppId'], self.config['DEFAULT']['TwitchAppSecret'])
+		if bool(self.config['GENERAL']['twitchappid']) and bool(self.config['GENERAL']['twitchappsecret']):
+			twitch = await Twitch(self.config['GENERAL']['twitchappid'], self.config['GENERAL']['twitchappsecret'])
 
 			auth = UserAuthenticator(twitch, ttsController.USER_SCOPE)
 			self.token, self.refresh_token = await auth.authenticate()
 
-			with open(os.path.join(self.config['DEFAULT']['OutputDir'], "credentials.json"), 'w') as f:
+			with open(os.path.join(self.config['GENERAL']['outputdir'], "credentials.json"), 'w') as f:
 				json.dump({'token': self.token, 'refresh': self.refresh_token}, f)
 		else:
 			print("Cannot run authorization")
@@ -218,7 +261,7 @@ class ttsController:
 				print(f"Reauth too soon: Must be after {self.reauth_window} s")
 				self.reauth_window = min(self.reauth_window * 2, 16)
 			else:
-				self.token, self.refresh_token = await refresh_access_token(self.refresh_token, self.config['DEFAULT']['TwitchAppId'], self.config['DEFAULT']['TwitchAppSecret'])
+				self.token, self.refresh_token = await refresh_access_token(self.refresh_token, self.config['GENERAL']['twitchappid'], self.config['GENERAL']['twitchappsecret'])
 
 				self.reauth_window = 1
 				self.reauth_last = time.time()
@@ -230,20 +273,20 @@ class ttsController:
 	# Run application
 	async def run(self):
 		# Use or generate auth
-		if os.path.exists(os.path.join(self.config['DEFAULT']['OutputDir'], "credentials.json")):
+		if os.path.exists(os.path.join(self.config['GENERAL']['outputdir'], "credentials.json")):
 			# Get the broadcaster (for ID)
-			with open(os.path.join(self.config['DEFAULT']['OutputDir'], "credentials.json")) as f:
+			with open(os.path.join(self.config['GENERAL']['outputdir'], "credentials.json")) as f:
 				creds = json.load(f)
 				self.token = creds["token"]
 				self.refresh_token = creds["refresh"]
 
 				self.headers = {
 					'Authorization': f'Bearer {creds["token"]}',
-					'Client-Id': self.config['DEFAULT']['TwitchAppId'],
+					'Client-Id': self.config['GENERAL']['twitchappid'],
 					'Content-Type': 'application/json'
 				}
 
-				broad_request = requests.get(f"{ttsController.URI}/users?user_login={self.config['DEFAULT']['TargetChannel']}", headers=self.headers)
+				broad_request = requests.get(f"{ttsController.URI}/users?user_login={self.config['GENERAL']['targetchannel']}", headers=self.headers)
 				self.broadcaster = broad_request.json()
 
 		# Create the app for twitch message processing

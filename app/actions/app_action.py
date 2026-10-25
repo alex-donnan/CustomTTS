@@ -1,15 +1,24 @@
 from tts_utils import *
 
 class appAction:
-	def __init__(self, app, config, name):
+	loaded = True
+	require_next = False
+
+	def __init__(self, app, name):
 		self.app = app
-		self.config = config
 		self.name = name
 		self.post_init()
 
 	def post_init(self):
-		#this does nothing, only for inheritance if needed
-		tooty = 'booty'
+		#this is for inheritance
+		return
+
+	def is_loaded(self):
+		return self.loaded
+
+	def lazy_load(self):
+		#this is for inheritance
+		return
 
 	def validate(self, msg, text):
 		raise NotImplementedError("Validate not implemented")
@@ -19,3 +28,7 @@ class appAction:
 
 	def generate(self, msg):
 		raise NotImplementedError("Generate not implemented")
+
+	def shutdown(self):
+		#this is for inheritance
+		return

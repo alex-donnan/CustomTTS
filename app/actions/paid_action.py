@@ -4,14 +4,12 @@ from tts_utils import *
 class paidAction(appAction):
 	default = False
 	default_value = ''
-	require_next = False
 	keywords = []
 
-	def __init__(self, app, config, name):
-		self.app = app
+	def __init__(self, config, name):
 		self.config = config
 		self.name = name
-		self.costs = eval(self.config[self.name]['costs'])
+		self.costs = self.config[self.name]['costs']
 		self.event_names = {
 			'channel.subscription.gift': 'subscriptions',
 			'channel.subscription.message': 'subscriptions',
@@ -20,10 +18,11 @@ class paidAction(appAction):
 		self.post_init()
 
 	def validate(self, msg, text) -> str | None:
-		if msg['metadata']['message_type'] == 'notification' and \
+		if self.config[self.name]['active'] and \
+			msg['metadata']['message_type'] == 'notification' and \
 			msg['payload']['subscription']['type'] != 'channel.chat.message' and \
 			int(self.costs[self.event_names[msg['payload']['subscription']['type']]]) <= msg['payload']['subscription']['cost'] and \
-			(self.default or (text[0] == self.config['DEFAULT']['split_text'] and text.split(' ')[0][1:].lower() in self.keywords)):
+			(self.default or (text[0] == self.config['GENERAL']['split_text'] and text.split(' ')[0][1:].lower() in self.keywords)):
 
 			if self.default and text.split(' ')[0][1:].lower() not in self.keywords:
 				return self.default_value
