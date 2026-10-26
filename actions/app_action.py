@@ -4,7 +4,7 @@ class appAction:
 	default = False
 	default_value = ''
 	loaded = True
-	require_next = False
+	regex = ''
 
 	def __init__(self, app, name):
 		self.app = app

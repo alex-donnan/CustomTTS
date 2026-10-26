@@ -88,6 +88,7 @@ class ttsController:
 			'LUTE': luteAction(self.config, 'LUTE'),
 			'SOUND': soundAction(self.config, 'SOUND'),
 			'TTS': ttsAction(self.config, 'TTS'),
+			'DEFAULT': ttsAction(self.config, 'TTS'),
 		}
 
 		# queues and processs for background work
@@ -98,8 +99,8 @@ class ttsController:
 		# workers (uninitialized)
 		self.gen_queue = mp.Queue()
 		self.tts_queue = mp.Queue()
-		self.gen_worker_process = genWorker(self.gen_queue, self.tts_queue, self.config, self.actions)
-		self.tts_worker_process = ttsWorker(self.tts_queue, self.config, self.played_file, self.current_speaker)
+		self.gen_worker_process = genWorker(self.gen_queue, self.tts_queue, self.config_manager, self.actions)
+		self.tts_worker_process = ttsWorker(self.tts_queue, self.config_manager, self.played_file, self.current_speaker)
 
 		# websocket server
 		#self.websocket_server = ttsWebsocket()
@@ -155,57 +156,64 @@ class ttsController:
 			message = msg['payload']['event']['message']
 			if type(message) == dict:
 				message = message['text']
+			message = message.strip()
 
-			message_parts = message.split()
-			last_action = None
-			last_key = None
-			last_ind = 0
-			filename = ''
+			action_data = {}
+			for action in self.actions.values():
+				action_data[action.name] = action.validate(msg, message)
 
-			for i, sub_message in enumerate(message_parts):
-				if sub_message.strip() == '': continue
+			# we're getting match data back from action validation
+			# we need to insert and sort the actions
+			matches = []
+			for key in action_data.keys():
+				if bool(action_data[key]):
+					for data in action_data[key]:
+						data = {
+							'key': key,
+							'start': data.start(),
+							'end': data.end(),
+							'text': data.group()
+						}
+						matches.append(data)
+			matches.sort(key=lambda data: data['start'])
 
-				for action in self.actions.values():
-					# Early escape for messages that require the next item after keyword
-					if bool(last_action) and \
-						action.name == last_action.name and \
-						action.require_next and \
-						i-last_ind == 1:
-						break
+			# next default action to missing sections
+			matches_final = matches[:]
+			for i, match in enumerate(matches):
+				if i == 0 and match['start'] > 0:
+					matches_final.insert(0, {
+						'key': 'DEFAULT',
+						'start': 0,
+						'end': match['start'],
+						'text': message[:match['start']]
+					})
+				if match['start'] - matches[max(0,i-1)]['end'] > 1:
+					match_ind = next((j for j, el in enumerate(matches_final) if el['start'] == match['start']))
+					matches_final.insert(match_ind, {
+						'key': 'DEFAULT',
+						'start': matches[i-1]['end'],
+						'end': match['start'],
+						'text': message[matches[i-1]['end']:match['start']]
+					})
+				if i == len(matches)-1 and match['end'] < len(message)-1:
+					matches_final.append({
+						'key': 'DEFAULT',
+						'start': match['end'],
+						'end': len(message),
+						'text': message[match['end']:]
+					})
 
-					key = action.validate(msg, sub_message)
+			if len(matches) == 0:
+				matches_final.append({
+					'key': 'DEFAULT',
+					'start': 0,
+					'end': len(message),
+					'text': message
+				})
 
-					if bool(last_action) and \
-						action.default and \
-						key == action.default_value and \
-						last_key != key and \
-						((not last_action.require_next) or (last_action.require_next and i-last_ind <=1)):
-						break
-					
-					if bool(key):
-						if last_action is None: last_action = action
-						if last_key is None: last_key = key
-
-						if last_action != action or \
-							(last_key != key and key != action.default_value) or \
-							key[0] == self.config['GENERAL']['split_text']:
-							msg['sub_message'] = ' '.join(message_parts[last_ind:i])
-							msg_obj = last_action.action(msg)
-
-							if bool(msg_obj):
-								filename = f"{self.config['GENERAL']['outputdir']}{uuid.uuid4()}"
-								msg_obj['filename'] = filename
-								message_list.append(msg_obj)
-
-							last_action = action
-							last_key = key
-							last_ind = i
-							break
-
-			# final section of message
-			if bool(last_action):
-				msg['sub_message'] = ' '.join(message_parts[last_ind:])
-				msg_obj = last_action.action(msg)
+			for match in matches_final:
+				msg['sub_message'] = match['text']
+				msg_obj = self.actions[match['key']].action(msg)
 
 				if bool(msg_obj):
 					filename = f"{self.config['GENERAL']['outputdir']}{uuid.uuid4()}"

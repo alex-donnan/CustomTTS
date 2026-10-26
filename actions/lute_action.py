@@ -9,14 +9,17 @@ import requests
 class luteAction(paidAction):
 	def post_init(self):
 		self.keywords = ['lute']
-		self.require_next = True
+		self.regex = rf'{self.config['GENERAL']['split_text']}lute (m |\d+ )?\S*'
+		self.max_length = 3
 
 	def generate(self, msg):
-		if self.config['FLAGS']['clear']: return msg
-
 		user = msg['user_name']
 		output_file = f"{msg['filename']}.wav"
 		message = msg['message']
+
+		# luteboi requires hash notation
+		if message[0] != '#':
+			message = f'#{message[1:]}'
 
 		try:
 			# Do lute

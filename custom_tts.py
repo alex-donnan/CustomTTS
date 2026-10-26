@@ -1,12 +1,16 @@
 import logging
 import torch.multiprocessing as mp
+import sys
+
 from tts_controller import ttsController
 from tts_gui import ttsGui
-from logger_config import setup_logging
+from setup_logging import setup_logging
 
 if __name__ == '__main__':
+    debug = True if sys.argv[1] == 'debug' else False
+
     # start logging
-    setup_logging()
+    setup_logging(debug)
     logger = logging.getLogger('main')
 
     # MP freeze

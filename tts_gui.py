@@ -318,10 +318,7 @@ class ttsGui():
 					sg.popup('You must enter a Twitch Username', title='Missing Data')
 			elif event in ('MUTE_LUTE', 'MUTE_TTS', 'MUTE_AI', 'MUTE_SOUND'):
 				action_type = event.split('_')[1]
-				action_active = self.app.config[action_type]['active']
-
-				self.app.config[action_type]['active'] = not action_active
-				self.app.save_config()
+				self.app.config[action_type]['active'] = not self.app.config[action_type]['active']
 				self.window[event].update(button_color='white on firebrick' if action_active else ('#420000', '#d4d7dd'))
 			elif event == 'SKIP':
 				self.app.config['FLAGS']['skip'] = True
@@ -411,8 +408,10 @@ class ttsGui():
 						sg.popup(f'The key "{values["SAMPLEKEY"]}" is already in use, please change.', title='Keyword Error')
 					else:
 						self.app.config['AI']['speakers'][values['SAMPLEKEY'].lower()] = self.window['SAMPLE_LIST'].get()
+
 						self.window['SAMPLES_KEYS'].update([f'{key}: {self.app.config["AI"]["speakers"][key]}' for key in self.app.config['AI']['speakers'].keys()])
 						self.window['SAMPLEKEY'].update('')
+						
 						self.app.save_config()
 				else:
 					sg.popup('You\'re missing either a keyword or sound selection.', title='Sound Error')
@@ -420,8 +419,9 @@ class ttsGui():
 			elif event == 'REMOVEVOICE':
 				samples = self.window['SAMPLES_KEYS'].get()
 				for sample in samples:
-					self.app.config['AI']['speakers'] = self.app.config['AI']['speakers'].pop(sample.split(':')[0])
-					self.window['SAMPLES_KEYS'].update([f'{key}: {self.app.config["AI"]["speakers"][key]}' for key in self.app.config['AI']['speakers'].keys()])
+					self.app.config['AI']['speakers'].pop(sample.split(':')[0])
+
+				self.window['SAMPLES_KEYS'].update([f'{key}: {self.app.config["AI"]["speakers"][key]}' for key in self.app.config['AI']['speakers'].keys()])
 				self.app.save_config()
 
 			# sound effects
@@ -438,8 +438,10 @@ class ttsGui():
 						sg.popup(f'The key "{values["SOUNDKEY"]}" is already in use, please change.', title='Keyword Error')
 					else:
 						self.app.config['SOUND']['sounds'][values['SOUNDKEY'].lower()] = self.window['SOUND_LIST'].get()
+
 						self.window['SOUNDS_KEYS'].update([f'{key}: {self.app.config["SOUND"]["sounds"][key]}' for key in self.app.config['SOUND']['sounds'].keys()])
 						self.window['SOUNDKEY'].update('')
+						
 						self.app.save_config()
 				else:
 					sg.popup('You\'re missing either a keyword or sound selection.', title='Sound Error')
@@ -447,7 +449,8 @@ class ttsGui():
 			elif event == 'REMOVESOUND':
 				sounds = self.window['SOUNDS_KEYS'].get()
 				for sound in sounds:
-					self.app.config['SOUND']['sounds'] = self.app.config['SOUND']['sounds'].pop(sound.split(':')[0])
+					self.app.config['SOUND']['sounds'].pop(sound.split(':')[0])
+				
 				self.window['SOUNDS_KEYS'].update([f'{key}: {self.app.config["SOUND"]["sounds"][key]}' for key in self.app.config['SOUND']['sounds'].keys()])
 				self.app.save_config()
 
@@ -482,6 +485,7 @@ class ttsGui():
 
 						if rem_ind > -1:
 							self.app.text_list.pop(0)
+							self.app.config['FLAGS']['skip'] = False
 
 						if messages != self.current_queue_list:
 							self.current_queue_list = messages
@@ -528,7 +532,6 @@ class ttsGui():
 		self.window.close()
 
 	def clear_queue(self):
-		logger.info(self.app.config)
 		was_paused = self.app.config['FLAGS']['pause']
 		self.app.config['FLAGS']['pause'] = True 
 		self.app.config['FLAGS']['clear'] = True 
@@ -562,10 +565,10 @@ class ttsGui():
 		self.app.config['FLAGS']['skip'] = True 
 
 	def pause_queue(self):
-		self.app.config['FLAGS']['pause'] = True 
+		self.app.config['FLAGS']['pause'] = True
 		self.window['PAUSE'].update(text='Play', button_color='white on firebrick')
 
 	def resume_queue(self):
-		self.app.config['FLAGS']['pause'] = False 
+		self.app.config['FLAGS']['pause'] = False
 		self.app.current_speaker = "none"
 		self.window['PAUSE'].update(text='Pause', button_color=('#420000', '#d4d7dd'))

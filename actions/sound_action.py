@@ -10,10 +10,13 @@ import shutil
 class soundAction(paidAction):
 	def post_init(self):
 		self.keywords = list(self.config['SOUND']['sounds'])
+		self.regex = rf'{self.config['GENERAL']['split_text']}({'|'.join(self.keywords)})'
+
+	def update(self):
+		self.keywords = list(self.config['SOUND']['sounds'])
+		self.regex = rf'{self.config['GENERAL']['split_text']}({'|'.join(self.keywords)})'
 
 	def generate(self, msg):
-		if not self.config[self.name]['active']: return msg
-
 		output_file =  f"{msg['filename']}.wav"
 		sound = msg['message'].split(' ')[0][1:].lower()
 		

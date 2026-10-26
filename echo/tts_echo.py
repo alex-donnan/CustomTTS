@@ -18,8 +18,9 @@ import torchaudio
 import torch
 
 class ttsEcho:
-	def __init__(self, config):
-		self.config = config
+	def __init__(self, config_manager):
+		self.config_manager = config_manager
+		self.config = dict(self.config_manager)
 
 		# check for cuda
 		self.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -28,10 +29,10 @@ class ttsEcho:
 			logger.info('Warning : Echo does not run correctly without CUDA (currently).')
 			logger.info('Echo will be pre-emptively disabled at this time. You can enable with a warning, it may not work as expected.')
 
-		self.speaker_samples = self.config['AI']['speakers']
+		self.speaker_samples = self.config_manager['AI']['speakers']
 		self.speaker_audio = {}
 		for speaker in self.speaker_samples.keys():
-			audio = load_audio(self.config['AI']['samplesdir'] + self.speaker_samples[speaker])
+			audio = load_audio(self.config_manager['AI']['samplesdir'] + self.speaker_samples[speaker])
 			if self.device == "cuda":
 				audio.cuda()
 			self.speaker_audio[speaker] = audio
@@ -41,20 +42,20 @@ class ttsEcho:
 		logger.info('Echo: Loading models and PCA state')
 		# load local inf models
 		self.model = load_model(
-			path=f"{self.config['GENERAL']['modeldir']}echo/pytorch_model.safetensors",
+			path=f"{self.config_manager['GENERAL']['modeldir']}echo/pytorch_model.safetensors",
 			device=self.device
 		)
 		logger.info(f'Phase 1 (model) {time.time() - start_time:.6f} s')
 
 		self.fish_ae = load_fish_ae(
-			path=f"{self.config['GENERAL']['modeldir']}fish/pytorch_model.safetensors",
+			path=f"{self.config_manager['GENERAL']['modeldir']}fish/pytorch_model.safetensors",
 			dtype=torch.bfloat16,
 			device=self.device
 		)
 		logger.info(f'Phase 2 (fish AE) {time.time() - start_time:.6f} s')
 
 		self.pca_state = load_pca_state(
-			path=f"{self.config['GENERAL']['modeldir']}echo/pca_state.safetensors",
+			path=f"{self.config_manager['GENERAL']['modeldir']}echo/pca_state.safetensors",
 			device=self.device
 		)
 		logger.info(f'Phase 3 (PCA state) {time.time() - start_time:.6f} s')
@@ -73,7 +74,7 @@ class ttsEcho:
 			torch.cuda.ipc_collect()
 
 	def add_speaker(self, name, filename):
-		self.speaker_samples[name] = self.config['AI']['samplesdir'] + filename
+		self.speaker_samples[name] = self.config_manager['AI']['samplesdir'] + filename
 		if name not in self.speaker_audio:
 			audio = load_audio(self.speaker_samples[name])
 			if self.device == "cuda":
@@ -87,7 +88,9 @@ class ttsEcho:
 		if name in self.speaker_audio:
 			del self.speaker_audio[name]
 
-		self.config['AI']['speakers'] = self.speaker_samples
+		config = dict(config_manager)
+		config['AI']['speakers'] = self.speaker_samples
+		self.config_manager.update(config)
 
 	def generate(self, name, text, filename):
 		if text[0:4] != '[S1]':

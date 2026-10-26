@@ -1,6 +1,8 @@
 from .app_action import appAction
 from tts_utils import *
 
+import re
+
 class paidAction(appAction):
 	keywords = []
 
@@ -15,19 +17,24 @@ class paidAction(appAction):
 		}
 		self.post_init()
 
+	def update(self):
+		# inheritance
+		return
+
 	def validate(self, msg, text) -> str | None:
+		self.update()
+
+		matches = list(re.finditer(self.regex, text, re.IGNORECASE))
+
 		if self.config[self.name]['active'] and \
 			msg['metadata']['message_type'] == 'notification' and \
 			msg['payload']['subscription']['type'] != 'channel.chat.message' and \
 			int(self.costs[self.event_names[msg['payload']['subscription']['type']]]) > 0 and \
 			int(self.costs[self.event_names[msg['payload']['subscription']['type']]]) <= msg['payload']['subscription']['cost'] and \
-			(self.default or (text[0] == self.config['GENERAL']['split_text'] and text.split(' ')[0][1:].lower() in self.keywords)):
+			len(matches) > 0:
+			return matches
 
-			if self.default and text.split(' ')[0][1:].lower() not in self.keywords:
-				return self.default_value
-			
-			return text.split(' ')[0].lower()
-		return None
+		return []
 
 	def action(self, msg):
 		message = {}

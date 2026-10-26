@@ -7,17 +7,17 @@ import queue
 import torch.multiprocessing as mp
 
 class genWorker(mp.Process):
-	def __init__(self, gen_queue, tts_queue, config, actions):
+	def __init__(self, gen_queue, tts_queue, config_manager, actions):
 		mp.Process.__init__(self, daemon=True)
 		self.gen_queue = gen_queue
 		self.tts_queue = tts_queue
-		self.config = config
+		self.config_manager = config_manager
 		self.actions = actions
 		self.echo = None
 
 	def run(self):
 		# we kind of lazy load echo for AI stuff
-		self.echo = ttsEcho(self.config)
+		self.echo = ttsEcho(self.config_manager)
 		if 'AI' in self.actions:
 			self.actions['AI'].echo = self.echo
 

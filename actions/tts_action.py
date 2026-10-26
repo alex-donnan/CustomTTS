@@ -6,26 +6,26 @@ logger = logging.getLogger(__name__)
 import requests
 
 class ttsAction(paidAction):
-	default = True
-	default_value = 'brian'
-	voices = {
-		'brian': 'Brian',
-		'ivy': 'Ivy',
-		'kimberly': 'Kimberly',
-		'joey': 'Joey',
-		'mizuki': 'Mizuki',
-		'chantal': 'Chantal',
-		'mathieu': 'Mathieu',
-		'matthew': 'Mathieu',
-		'maxim': 'Maxim',
-		'hans': 'Hans',
-		'raveena': 'Raveena'
-	}
-	keywords = voices.keys()
+	def post_init(self):
+		self.default = True
+		self.default_value = 'brian'
+		self.voices = {
+			'brian': 'Brian',
+			'ivy': 'Ivy',
+			'kimberly': 'Kimberly',
+			'joey': 'Joey',
+			'mizuki': 'Mizuki',
+			'chantal': 'Chantal',
+			'mathieu': 'Mathieu',
+			'matthew': 'Mathieu',
+			'maxim': 'Maxim',
+			'hans': 'Hans',
+			'raveena': 'Raveena'
+		}
+		self.keywords = self.voices.keys()
+		self.regex = rf'{self.config['GENERAL']['split_text']}({'|'.join(self.keywords)})[^{self.config['GENERAL']['split_text']}]*'
 
 	def generate(self, msg):
-		if not self.config[self.name]['active']: return msg
-
 		output_file = f"{msg['filename']}.mp3"
 		voice = msg['message'].split(' ')[0][1:].lower()
 		message = msg['message']
