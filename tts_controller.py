@@ -15,6 +15,7 @@ import logging
 logger = logging.getLogger(__name__)
 import os
 import requests
+import shutil
 import time
 import torch
 import torch.multiprocessing as mp
@@ -43,6 +44,13 @@ class ttsController:
 	def __init__(self):
 		mp.set_start_method("spawn", force=True)
 
+		# check config exists
+		if not os.path.exists('config.ini'):
+			if os.path.exists('config.ini.example'):
+				shutil.copy('config.ini.example', 'config.ini')
+			else:
+				raise Exception('Config example file missing, aborting')
+
 		# config
 		self.process_manager = mp.Manager()
 		try:
@@ -64,6 +72,13 @@ class ttsController:
 		
 		self.config_manager = self.process_manager.dict()
 		self.config_manager.update(self.config)
+
+		# check all paths exist
+		if not os.path.exists(self.config['GENERAL']['outputdir']): os.mkdir(self.config['GENERAL']['outputdir'])
+		if not os.path.exists(self.config['GENERAL']['modeldir']): os.mkdir(self.config['GENERAL']['modeldir'])
+		if not os.path.exists(self.config['GENERAL']['assetsdir']): os.mkdir(self.config['GENERAL']['assetsdir'])
+		if not os.path.exists(self.config['AI']['samplesdir']): os.mkdir(self.config['AI']['samplesdir'])
+		if not os.path.exists(self.config['SOUND']['soundsdir']): os.mkdir(self.config['SOUND']['soundsdir'])
 
 		# twitch auth stuff
 		self.token = None

@@ -8,11 +8,12 @@ from .inference import (
 )
 from functools import partial
 
-import configparser
 import gc
-import json
+from huggingface_hub import hf_hub_download
 import logging
 logger = logging.getLogger(__name__)
+import os
+import shutil
 import time
 import torchaudio
 import torch
@@ -40,6 +41,29 @@ class ttsEcho:
 
 		start_time = time.time()
 		logger.info('Echo: Loading models and PCA state')
+
+		# check models first
+		if not os.path.exists(f"{self.config_manager['GENERAL']['modeldir']}echo/pytorch_model.safetensors"):
+			os.makedirs(f"{self.config_manager['GENERAL']['modeldir']}echo/", exist_ok=True)
+			file = hf_hub_download(repo_id='jordand/echo-tts-base', filename='pytorch_model.safetensors')
+			shutil.copy(file, f"{self.config_manager['GENERAL']['modeldir']}echo/pytorch_model.safetensors")
+			logging.info(f'Echo: downloaded echo pytorch model')
+
+			file = hf_hub_download(repo_id='jordand/echo-tts-base', filename='pca_state.safetensors')
+			shutil.copy(file, f"{self.config_manager['GENERAL']['modeldir']}echo/pca_state.safetensors")
+			logging.info(f'Echo: downloaded echo pca_state model')
+
+		if not os.path.exists(f"{self.config_manager['GENERAL']['modeldir']}fish/pytorch_model.safetensors"):
+			os.makedirs(f"{self.config_manager['GENERAL']['modeldir']}fish/", exist_ok=True)
+			file = hf_hub_download(repo_id='jordand/fish-s1-dac-min', filename='pytorch_model.safetensors')
+			shutil.copy(file, f"{self.config_manager['GENERAL']['modeldir']}fish/pytorch_model.safetensors")
+			logging.info(f'Echo: downloaded fish pytorch_model model')
+
+			file = hf_hub_download(repo_id='jordand/fish-s1-dac-min', filename='config.json')
+			shutil.copy(file, f"{self.config_manager['GENERAL']['modeldir']}fish/config.json")
+			logging.info(f'Echo: downloaded fish config')
+
+
 		# load local inf models
 		self.model = load_model(
 			path=f"{self.config_manager['GENERAL']['modeldir']}echo/pytorch_model.safetensors",
