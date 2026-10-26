@@ -7,7 +7,10 @@ from tts_gui import ttsGui
 from setup_logging import setup_logging
 
 if __name__ == '__main__':
-    debug = True if sys.argv[1] == 'debug' else False
+    if len(sys.argv) > 1:
+        debug = True if sys.argv[1] == 'debug' else False
+    else:
+        debug = False
 
     # start logging
     setup_logging(debug)
