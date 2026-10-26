@@ -7,7 +7,7 @@
   },
   {
    "optionDest": "filenames",
-   "value": "C:/Users/alexd/Documents/CustomTTS_v1/ttsGui.py"
+   "value": "C:/Users/alexd/Documents/CustomTTS/custom_tts.py"
   },
   {
    "optionDest": "onefile",
@@ -15,11 +15,15 @@
   },
   {
    "optionDest": "console",
-   "value": true
+   "value": false
   },
   {
    "optionDest": "icon_file",
-   "value": "C:/Users/alexd/Documents/CustomTTS_v1/assets/sir.ico"
+   "value": "C:/Users/alexd/Documents/CustomTTS/assets/sir.ico"
+  },
+  {
+   "optionDest": "name",
+   "value": "CustomTTS"
   },
   {
    "optionDest": "clean_build",
@@ -54,68 +58,12 @@
    "value": false
   },
   {
-   "optionDest": "datas",
-   "value": "C:/Users/alexd/Documents/CustomTTS_v1/assets;assets/"
-  },
-  {
-   "optionDest": "datas",
-   "value": "C:/Users/alexd/Documents/CustomTTS_v1/models;models/"
-  },
-  {
-   "optionDest": "hookspath",
-   "value": "C:/Users/alexd/Documents/CustomTTS_v1/hooks"
-  },
-  {
    "optionDest": "hiddenimports",
-   "value": "decorator"
-  },
-  {
-   "optionDest": "hiddenimports",
-   "value": "audioread"
-  },
-  {
-   "optionDest": "hiddenimports",
-   "value": "soxr"
-  },
-  {
-   "optionDest": "hiddenimports",
-   "value": "pycrfsuite._dumpparser"
-  },
-  {
-   "optionDest": "hiddenimports",
-   "value": "pycrfsuite._logparser"
-  },
-  {
-   "optionDest": "datas",
-   "value": "C:/Users/alexd/Documents/CustomTTS_v1/config.ini;."
-  },
-  {
-   "optionDest": "hiddenimports",
-   "value": "TTS.tts.configs.vits_config"
-  },
-  {
-   "optionDest": "hiddenimports",
-   "value": "TTS.tts.layers.generic"
-  },
-  {
-   "optionDest": "hiddenimports",
-   "value": "librosa.core"
-  },
-  {
-   "optionDest": "hiddenimports",
-   "value": "librosa.util"
-  },
-  {
-   "optionDest": "hiddenimports",
-   "value": "librosa.feature"
-  },
-  {
-   "optionDest": "hiddenimports",
-   "value": "inflect"
+   "value": "num2words"
   }
  ],
  "nonPyinstallerOptions": {
-  "increaseRecursionLimit": false,
+  "increaseRecursionLimit": true,
   "manualArguments": ""
  }
 }

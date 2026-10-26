@@ -1,1 +1,0 @@
-datas = [('C:/Users/alexd/Documents/CustomTTS_v1/.venv/Lib/site-packages/espeakng/*', 'espeak')]
