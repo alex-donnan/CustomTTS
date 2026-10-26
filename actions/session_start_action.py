@@ -1,6 +1,8 @@
 from .app_action import appAction
 from tts_utils import *
 
+import logging
+logger = logging.getLogger(__name__)
 import os
 import requests
 
@@ -19,9 +21,9 @@ class sessionStartAction(appAction):
 		).json()
 
 		if 'error' in init_check:
-			print(f"Initializing failed, {init_check['error']}: {init_check['message']}")
+			logger.info(f"Initializing failed, {init_check['error']}: {init_check['message']}")
 			if init_check['message'] == 'Invalid OAuth token':
-				print('Attempting fix for "Invalid OAuth token"... removing stored credentials')
+				logger.info('Attempting fix for "Invalid OAuth token"... removing stored credentials')
 				os.remove(os.path.join(self.app.config['GENERAL']['outputdir'], "credentials.json"))
 
 			raise Exception(init_check['message'])
@@ -49,7 +51,7 @@ class sessionStartAction(appAction):
 
 				response = requests.post(self.app.SUBS_ENDPOINT, json=sub_data, headers=self.app.headers)
 				self.app.subscriptions.append(sub_type)
-				print(f'Subscription response: {response.json()}')
+				logger.info(f'Subscription response: {response.json()}')
 
 		return None
 

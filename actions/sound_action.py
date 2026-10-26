@@ -1,6 +1,8 @@
 from .paid_action import paidAction
 from tts_utils import *
 
+import logging
+logger = logging.getLogger(__name__)
 import os
 import requests
 import shutil
@@ -20,9 +22,9 @@ class soundAction(paidAction):
 			shutil.copy(os.path.join(self.config['SOUND']['soundsdir'], self.config['SOUND']['sounds'][sound]), output_file)
 
 			#Put the file in the play queue
-			print(f'New file for {sound}: { msg["message"]}: {output_file}')
+			logger.info(f'New file for {sound}: { msg["message"]}: {output_file}')
 			msg['filename'] = output_file
 		except Exception as e:
-			print(f'Sound failed to pass to file: {e}')
+			logger.warn(f'Sound failed to pass to file: {e}')
 
 		return msg

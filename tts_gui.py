@@ -1,5 +1,7 @@
 import asyncio
 import json
+import logging
+logger = logging.getLogger(__name__)
 import os
 import PySimpleGUI as sg
 import queue
@@ -499,14 +501,14 @@ class ttsGui():
 						# Disconnected? Try to connect
 						if not self.app.connected:
 							if time.time() - self.app.reauth_last < self.app.reauth_window:
-								print(f'{time.time() - self.app.reauth_last:.2f} s to soon to reconnect ({self.app.reauth_window})')
+								logger.info(f'{time.time() - self.app.reauth_last:.2f} s to soon to reconnect ({self.app.reauth_window})')
 							else:
 								self.app.ws_app = None
 								asyncio.run(self.app.reauth())
 					else:
 						# Start workers and websocket
 						if os.path.exists(os.path.join(self.app.config['GENERAL']['outputdir'], "credentials.json")):
-							print('Credentials exist, starting WebSocket app.')
+							logger.info('Credentials exist, starting WebSocket app.')
 							self.window['CONNECT'].update(disabled=True)
 							self.window['USERNAME'].update(disabled=True)
 							asyncio.run(self.app.run())
@@ -517,16 +519,16 @@ class ttsGui():
 							asyncio.run(self.app.auth())
 
 				except Exception as e:
-					print(f'Error updating the connection status and queue: ' + str(e))
+					logger.info(f'Error updating the connection status and queue: ' + str(e))
 					if str(e) == 'Invalid refresh token' and os.path.exists(os.path.join(self.app.config['GENERAL']['outputdir'], "credentials.json")):
 						os.remove(os.path.join(self.app.config['GENERAL']['outputdir'], "credentials.json"))
-						print('Reauthenticating now.')
-					print('Trying update again in 2 seconds...')
+						logger.info('Reauthenticating now.')
+					logger.info('Trying update again in 2 seconds...')
 
 		self.window.close()
 
 	def clear_queue(self):
-		print(self.app.config)
+		logger.info(self.app.config)
 		was_paused = self.app.config['FLAGS']['pause']
 		self.app.config['FLAGS']['pause'] = True 
 		self.app.config['FLAGS']['clear'] = True 

@@ -11,6 +11,8 @@ from workers import *
 import ast
 import configparser
 import json
+import logging
+logger = logging.getLogger(__name__)
 import os
 import requests
 import time
@@ -46,7 +48,7 @@ class ttsController:
 		try:
 			self.process_manager.start()
 		except Exception as e:
-			print('Manager already running')
+			logger.warn('Manager already running')
 		self.config_parser = configparser.ConfigParser()
 		self.config_parser.read('config.ini')
 		self.config = {}
@@ -110,7 +112,7 @@ class ttsController:
 			self.gen_worker_process.start()
 			self.tts_worker_process.start()
 		except Exception as e:
-			print(f'Failed to start processes: {e}')
+			logger.warn(f'Failed to start processes: {e}')
 
 	# Config
 	def save_config(self):
@@ -120,7 +122,7 @@ class ttsController:
 				self.config_parser.read_dict(self.config_manager)
 				self.config_parser.write(configfile)
 		except Exception as e:
-			print(f'Failed to write config file: {e}')
+			logger.warn(f'Failed to write config file: {e}')
 
 	# Shutdown
 	def shutdown(self):
@@ -132,13 +134,13 @@ class ttsController:
 			action.shutdown()
 
 		self.save_config()
-		print("Shutting down")
+		logger.info("Shutting down")
 
 	# Twitch WebSocket event methods
 	def on_open(self, ws):
 		# update the color
 		self.config['FLAGS']['clear'] = False
-		print('Connected to Twitch')
+		logger.info('Connected to Twitch')
 
 	def on_message(self, ws, msg):
 		msg = json.loads(msg)
@@ -222,23 +224,23 @@ class ttsController:
 			# update status icon after it works
 			self.connected = True
 		except Exception as e:
-			print(f'Unable to handle inbound WS message: {e}')
-			print(f'Message: {msg}')
+			logger.warn(f'Unable to handle inbound WS message: {e}')
+			logger.warn(f'Message: {msg}')
 
 				
 	def on_error(self, ws, msg):
 		self.connected = False
-		print(f'An error has occurred: {msg}')
+		logger.warn(f'An error has occurred: {msg}')
 		return
 
 	def on_close(self, ws, close_status_code, msg):
 		self.connected = False
-		print(f'Closed: {close_status_code} \n - {msg}')
+		logger.info(f'Closed: {close_status_code} \n - {msg}')
 		return
 
 	#Authentication
 	async def update_stored_creds(self, token, refresh):
-		print("Access token refreshed successfully")
+		logger.info("Access token refreshed successfully")
 		with open(os.path.join(self.config['GENERAL']['outputdir'], "credentials.json"), 'w') as f:
 			json.dump({'token': token, 'refresh': refresh}, f)
 
@@ -253,14 +255,14 @@ class ttsController:
 			with open(os.path.join(self.config['GENERAL']['outputdir'], "credentials.json"), 'w') as f:
 				json.dump({'token': self.token, 'refresh': self.refresh_token}, f)
 		else:
-			print("Cannot run authorization")
+			logger.info("Cannot run authorization")
 
 	async def reauth(self):
 		if bool(self.refresh_token):
-			print("Attempting to refresh access token")
+			logger.info("Attempting to refresh access token")
 
 			if self.reauth_last - time.time() < self.reauth_window:
-				print(f"Reauth too soon: Must be after {self.reauth_window} s")
+				logger.info(f"Reauth too soon: Must be after {self.reauth_window} s")
 				self.reauth_window = min(self.reauth_window * 2, 16)
 			else:
 				self.token, self.refresh_token = await refresh_access_token(self.refresh_token, self.config['GENERAL']['twitchappid'], self.config['GENERAL']['twitchappsecret'])
@@ -269,7 +271,7 @@ class ttsController:
 				self.reauth_last = time.time()
 				await self.update_stored_creds(self.token, self.refresh_token)
 		else:
-			print("First auth not completed, trying now")
+			logger.info("First auth not completed, trying now")
 			await self.auth()
 
 	# Run application
@@ -293,7 +295,7 @@ class ttsController:
 
 		# Create the app for twitch message processing
 		if not self.ws_app:
-			print('Creating twitch websocket')
+			logger.info('Creating twitch websocket')
 			websocket.setdefaulttimeout(10)
 			self.ws_app = websocket.WebSocketApp(
 				ttsController.WS_ENDPOINT,

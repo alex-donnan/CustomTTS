@@ -1,6 +1,8 @@
 from .paid_action import paidAction
 from tts_utils import *
 
+import logging
+logger = logging.getLogger(__name__)
 import requests
 
 class ttsAction(paidAction):
@@ -46,9 +48,9 @@ class ttsAction(paidAction):
 				f.write(data.content)
 
 			# Put the file in the play queue
-			print(f'New file for {voice}: {message}: {output_file}')
+			logger.info(f'New file for {voice}: {message}: {output_file}')
 			msg['filename'] = output_file
 		except Exception as e:
-			print(f'TTS failed to generate: {e}')
+			logger.warn(f'TTS failed to generate: {e}')
 
 		return msg

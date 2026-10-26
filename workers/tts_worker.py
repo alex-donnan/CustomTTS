@@ -2,6 +2,8 @@ from preferredsoundplayer import *
 from tts_utils import *
 
 import asyncio
+import logging
+logger = logging.getLogger(__name__)
 import os
 import queue
 import torch.multiprocessing as mp
@@ -40,7 +42,7 @@ class ttsWorker(mp.Process):
 		media_paused = False
 		session = None
 		for msg_obj in audio_list:
-			print(f'Trying to play {msg_obj['filename']}')
+			logger.info(f'Trying to play {msg_obj['filename']}')
 
 			if not os.path.isfile(msg_obj['filename']): continue
 
@@ -71,7 +73,7 @@ class ttsWorker(mp.Process):
 				self.current_speaker.value = b'none' if not self.config['FLAGS']['pause'] else b'paused'
 				os.remove(msg_obj['filename'])
 			except Exception as e:
-				print(f'Audio Play failed to play file: {e}')
+				logger.warn(f'Audio Play failed to play file: {e}')
 
 			# lets the message viewer remove failed messages
 			self.played_file.value = bytes(msg_obj['filename'][:-4], 'utf-8')

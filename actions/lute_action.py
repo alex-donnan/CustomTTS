@@ -1,6 +1,8 @@
 from .paid_action import paidAction
 from tts_utils import *
 
+import logging
+logger = logging.getLogger(__name__)
 import urllib
 import requests
 
@@ -23,8 +25,8 @@ class luteAction(paidAction):
 			with open(output_file, 'wb') as f:
 				f.write(data.content)
 
-			print(f'New file from LuteBoi: {message}: {output_file}')
+			logger.info(f'New file from LuteBoi: {message}: {output_file}')
 			msg['filename'] = output_file
 		except Exception as e:
-			print(f'LuteBoi failed to generate: {e}')
+			logger.warn(f'LuteBoi failed to generate: {e}')
 		return msg

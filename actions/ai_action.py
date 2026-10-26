@@ -1,5 +1,7 @@
 from .paid_action import paidAction
 from tts_utils import *
+import logging
+logger = logging.getLogger(__name__)
 
 class aiAction(paidAction):
 	def post_init(self):
@@ -28,8 +30,8 @@ class aiAction(paidAction):
 			message = replace_emoji(message)
 
 			if self.echo.generate(voice, message, output_file):
-				print(f'New file for {voice}: {message}: {output_file}')
+				logger.info(f'New file for {voice}: {message}: {output_file}')
 				msg['filename'] = output_file
 			else:
-				print(f'Echo failed to generate')
+				logger.info(f'Echo failed to generate')
 		return msg

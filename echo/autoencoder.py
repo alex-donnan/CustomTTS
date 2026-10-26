@@ -93,7 +93,7 @@ def WNConv1d(*args, **kwargs):
 def WNConvTranspose1d(*args, **kwargs):
 	return weight_norm(nn.ConvTranspose1d(*args, **kwargs))
 
-@torch.jit.script
+@torch.jit._script_if_tracing
 def snake(x: Tensor, alpha: Tensor) -> Tensor:
 	shape = x.shape
 	x = x.reshape(shape[0], shape[1], -1)

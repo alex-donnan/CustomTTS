@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from torchcodec.decoders import AudioDecoder
 from typing import Callable, List, Tuple
 
+import logging
+logger = logging.getLogger(__name__)
 import safetensors.torch as st
 import time
 import torch
@@ -290,7 +292,7 @@ def sample_pipeline(
 	device, dtype = model.device, model.dtype
 
 	text_input_ids, text_mask, normalized_text = get_text_input_ids_and_mask([text_prompt], max_length=min(pad_to_max_text_length or MAX_TEXT_LENGTH, MAX_TEXT_LENGTH), device=device, normalize=normalize_text, return_normalized_text=True, pad_to_max=(pad_to_max_text_length is not None))
-	print(f'Phase 1 (text input ids and mask) {time.perf_counter() - start_time:.6f} s')
+	logger.info(f'Phase 1 (text input ids and mask) {time.perf_counter() - start_time:.6f} s')
 
 	if speaker_audio is None:
 		speaker_latent = torch.zeros((1, pad_to_max_speaker_latent_length or 4, 80), device=device, dtype=dtype)
@@ -303,16 +305,16 @@ def sample_pipeline(
 			max_speaker_latent_length=pad_to_max_speaker_latent_length or MAX_SPEAKER_LATENT_LENGTH,
 			pad_to_max=(pad_to_max_speaker_latent_length is not None)
 		)
-	print(f'Phase 2 (speaker and latent mask) {time.perf_counter() - start_time:.6f} s')
+	logger.info(f'Phase 2 (speaker and latent mask) {time.perf_counter() - start_time:.6f} s')
 
 	latent_out = sample_fn(model, speaker_latent, speaker_mask, text_input_ids, text_mask, rng_seed)
-	print(f'Phase 3 (latent out) {time.perf_counter() - start_time:.6f} s')
+	logger.info(f'Phase 3 (latent out) {time.perf_counter() - start_time:.6f} s')
 
 	audio_out = ae_decode(fish_ae, pca_state, latent_out)
-	print(f'Phase 4 (audio out) {time.perf_counter() - start_time:.6f} s')
+	logger.info(f'Phase 4 (audio out) {time.perf_counter() - start_time:.6f} s')
 
 	audio_out = crop_audio_to_flattening_point(audio_out, latent_out[0])
-	print(f'Phase 5 (crop audio) {time.perf_counter() - start_time:.6f} s')
+	logger.info(f'Phase 5 (crop audio) {time.perf_counter() - start_time:.6f} s')
 
 	return audio_out, normalized_text[0]
 

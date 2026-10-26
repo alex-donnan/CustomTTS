@@ -11,6 +11,8 @@ from functools import partial
 import configparser
 import gc
 import json
+import logging
+logger = logging.getLogger(__name__)
 import time
 import torchaudio
 import torch
@@ -21,10 +23,10 @@ class ttsEcho:
 
 		# check for cuda
 		self.device = "cuda" if torch.cuda.is_available() else "cpu"
-		print(f"Using device: {self.device}")
+		logger.info(f"Using device: {self.device}")
 		if self.device == 'cpu':
-			print('Warning : Echo does not run correctly without CUDA (currently).')
-			print('Echo will be pre-emptively disabled at this time. You can enable with a warning, it may not work as expected.')
+			logger.info('Warning : Echo does not run correctly without CUDA (currently).')
+			logger.info('Echo will be pre-emptively disabled at this time. You can enable with a warning, it may not work as expected.')
 
 		self.speaker_samples = self.config['AI']['speakers']
 		self.speaker_audio = {}
@@ -33,31 +35,30 @@ class ttsEcho:
 			if self.device == "cuda":
 				audio.cuda()
 			self.speaker_audio[speaker] = audio
-		print(f'Echo: Loaded {len(self.speaker_audio)} voices')
+		logger.info(f'Echo: Loaded {len(self.speaker_audio)} voices')
 
 		start_time = time.time()
-		print('Echo: Loading models and PCA state')
+		logger.info('Echo: Loading models and PCA state')
 		# load local inf models
 		self.model = load_model(
-			path="./echo/models/echo/pytorch_model.safetensors",
-			#delete_blockwise_modules=True,
+			path=f"{self.config['GENERAL']['modeldir']}echo/pytorch_model.safetensors",
 			device=self.device
 		)
-		print(f'Phase 1 (model) {time.time() - start_time:.6f} s')
+		logger.info(f'Phase 1 (model) {time.time() - start_time:.6f} s')
 
 		self.fish_ae = load_fish_ae(
-			path="./echo/models/fish/pytorch_model.safetensors",
+			path=f"{self.config['GENERAL']['modeldir']}fish/pytorch_model.safetensors",
 			dtype=torch.bfloat16,
 			device=self.device
 		)
-		print(f'Phase 2 (fish AE) {time.time() - start_time:.6f} s')
+		logger.info(f'Phase 2 (fish AE) {time.time() - start_time:.6f} s')
 
 		self.pca_state = load_pca_state(
-			path="./echo/models/echo/pca_state.safetensors",
+			path=f"{self.config['GENERAL']['modeldir']}echo/pca_state.safetensors",
 			device=self.device
 		)
-		print(f'Phase 3 (PCA state) {time.time() - start_time:.6f} s')
-		print('Echo: Loaded models and PCA state')
+		logger.info(f'Phase 3 (PCA state) {time.time() - start_time:.6f} s')
+		logger.info('Echo: Loaded models and PCA state')
 
 	def unload_models(self):
 		del self.model
@@ -124,9 +125,9 @@ class ttsEcho:
 
 			torchaudio.save(filename, audio_out[0].cpu(), 44100)
 			end_time = time.time() - start_time
-			print(f'Local generation succeeded in {end_time:.6f} seconds')
+			logger.info(f'Local generation succeeded in {end_time:.6f} seconds')
 		except Exception as e:
-			print(f'Local generation failed: {e}')
+			logger.info(f'Local generation failed: {e}')
 			return False
 
 		return True

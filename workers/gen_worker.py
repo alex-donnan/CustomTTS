@@ -1,6 +1,8 @@
 from actions import *
 from echo import ttsEcho
 
+import logging
+logger = logging.getLogger(__name__)
 import queue
 import torch.multiprocessing as mp
 
@@ -38,7 +40,7 @@ class genWorker(mp.Process):
 				if bool(msg_obj):
 					audio_list.append(msg_obj)
 			except Exception as e:
-				print(f'Failed to generate audio, aborting message: {e}')
+				logger.warn(f'Failed to generate audio, aborting message: {e}')
 				break
 
 		if len(audio_list) > 0:
