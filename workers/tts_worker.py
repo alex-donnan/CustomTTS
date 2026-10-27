@@ -36,8 +36,9 @@ class ttsWorker(mp.Process):
 	def play_audio(self, audio_list):
 		self.current_speaker.value = b"none"
 
-		soundplay("assets/cheer.wav", block=True)
-		sleep(0.25)
+		if self.config_manager['GENERAL']['alert_active']:
+			soundplay(f'{self.config_manager['GENERAL']['assetsdir']}cheer.wav', block=True)
+			sleep(0.25)
 		
 		media_paused = False
 		session = None

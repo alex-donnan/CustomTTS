@@ -6,6 +6,8 @@ assetsdir = ./assets/
 twitchappid = 
 twitchappsecret = 
 split_text = #
+alert_sound = 'cheer.wav'
+alert_active = True
 
 [FLAGS]
 skip = False
@@ -15,25 +17,25 @@ clear = False
 [AI]
 speakers = {}
 samplesdir = ./assets/samples/
-costs = {"bits":0,"subscriptions":0,"donations":0}
+costs = {"bits":0,"subscriptions":0,"donations":0,"points":0}
 active = True
 
 [CHAT]
 active = True
 
 [LUTE]
-costs = {"bits":0,"subscriptions":0,"donations":0}
+costs = {"bits":0,"subscriptions":0,"donations":0,"points":0}
 active = True
 pause_music = False
 
 [SOUND]
 sounds = {}
 soundsdir = ./assets/sounds/
-costs = {"bits":0,"subscriptions":0,"donations":0}
+costs = {"bits":0,"subscriptions":0,"donations":0,"points":0}
 active = True
 
 [TTS]
 streamelementskey = 
-costs = {"bits":0,"subscriptions":0,"donations":0}
+costs = {"bits":0,"subscriptions":0,"donations":0,"points":0}
 active = True
 

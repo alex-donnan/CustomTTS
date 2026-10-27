@@ -1,26 +1,10 @@
-2026-10-25 23:01:46,629 [WARNING] (tts_controller) Manager already running
-2026-10-25 23:01:47,956 [INFO] (tts_gui) Credentials exist, starting WebSocket app.
-2026-10-25 23:01:47,956 [DEBUG] (asyncio) Using proactor: IocpProactor
-2026-10-25 23:01:47,965 [DEBUG] (urllib3.connectionpool) Starting new HTTPS connection (1): api.twitch.tv:443
-2026-10-25 23:01:48,439 [DEBUG] (urllib3.connectionpool) https://api.twitch.tv:443 "GET /helix/users?user_login=jellycopter229 HTTP/1.1" 200 386
-2026-10-25 23:01:48,439 [INFO] (tts_controller) Creating twitch websocket
-2026-10-25 23:01:48,606 [INFO] (websocket) Websocket connected
-2026-10-25 23:01:48,606 [INFO] (tts_controller) Connected to Twitch
-2026-10-25 23:01:48,606 [DEBUG] (urllib3.connectionpool) Starting new HTTPS connection (1): api.twitch.tv:443
-2026-10-25 23:01:49,039 [DEBUG] (urllib3.connectionpool) https://api.twitch.tv:443 "GET /helix/eventsub/subscriptions?status=enabled HTTP/1.1" 200 72
-2026-10-25 23:01:49,048 [DEBUG] (urllib3.connectionpool) Starting new HTTPS connection (1): api.twitch.tv:443
-2026-10-25 23:01:49,516 [DEBUG] (urllib3.connectionpool) https://api.twitch.tv:443 "POST /helix/eventsub/subscriptions HTTP/1.1" 202 399
-2026-10-25 23:01:49,516 [INFO] (actions.session_start_action) Subscription response: {'data': [{'id': '593cc754-e743-46e3-80e8-00283877f466', 'status': 'enabled', 'type': 'channel.subscription.message', 'version': '1', 'condition': {'broadcaster_user_id': '73248631'}, 'created_at': '2026-10-26T06:01:49.401666848Z', 'transport': {'method': 'websocket', 'session_id': 'AgoQRwYA4ZgcT5-ld1U0OvyyJxIGY2VsbC1h', 'connected_at': '2026-10-26T06:01:48Z'}, 'cost': 0}], 'total': 1, 'max_total_cost': 10, 'total_cost': 0}
-2026-10-25 23:01:49,516 [DEBUG] (urllib3.connectionpool) Starting new HTTPS connection (1): api.twitch.tv:443
-2026-10-25 23:01:49,989 [DEBUG] (urllib3.connectionpool) https://api.twitch.tv:443 "POST /helix/eventsub/subscriptions HTTP/1.1" 202 396
-2026-10-25 23:01:49,989 [INFO] (actions.session_start_action) Subscription response: {'data': [{'id': '7f531d5d-88ed-4988-9fe6-6a9b0b4b0114', 'status': 'enabled', 'type': 'channel.subscription.gift', 'version': '1', 'condition': {'broadcaster_user_id': '73248631'}, 'created_at': '2026-10-26T06:01:49.880487042Z', 'transport': {'method': 'websocket', 'session_id': 'AgoQRwYA4ZgcT5-ld1U0OvyyJxIGY2VsbC1h', 'connected_at': '2026-10-26T06:01:48Z'}, 'cost': 0}], 'total': 1, 'max_total_cost': 10, 'total_cost': 0}
-2026-10-25 23:01:49,993 [DEBUG] (urllib3.connectionpool) Starting new HTTPS connection (1): api.twitch.tv:443
-2026-10-25 23:01:50,461 [DEBUG] (urllib3.connectionpool) https://api.twitch.tv:443 "POST /helix/eventsub/subscriptions HTTP/1.1" 202 384
-2026-10-25 23:01:50,461 [INFO] (actions.session_start_action) Subscription response: {'data': [{'id': '3df8e094-7a3d-4665-ab36-8c92679ce03f', 'status': 'enabled', 'type': 'channel.cheer', 'version': '1', 'condition': {'broadcaster_user_id': '73248631'}, 'created_at': '2026-10-26T06:01:50.342253692Z', 'transport': {'method': 'websocket', 'session_id': 'AgoQRwYA4ZgcT5-ld1U0OvyyJxIGY2VsbC1h', 'connected_at': '2026-10-26T06:01:48Z'}, 'cost': 0}], 'total': 1, 'max_total_cost': 10, 'total_cost': 0}
-2026-10-25 23:01:50,461 [DEBUG] (urllib3.connectionpool) Starting new HTTPS connection (1): api.twitch.tv:443
-2026-10-25 23:01:50,975 [DEBUG] (urllib3.connectionpool) https://api.twitch.tv:443 "POST /helix/eventsub/subscriptions HTTP/1.1" 202 411
-2026-10-25 23:01:50,984 [INFO] (actions.session_start_action) Subscription response: {'data': [{'id': '2d1c9977-8a49-407a-b7b9-2464c74229f2', 'status': 'enabled', 'type': 'channel.chat.message', 'version': '1', 'condition': {'broadcaster_user_id': '73248631', 'user_id': '73248631'}, 'created_at': '2026-10-26T06:01:50.84898769Z', 'transport': {'method': 'websocket', 'session_id': 'AgoQRwYA4ZgcT5-ld1U0OvyyJxIGY2VsbC1h', 'connected_at': '2026-10-26T06:01:48Z'}, 'cost': 0}], 'total': 4, 'max_total_cost': 10, 'total_cost': 0}
-2026-10-25 23:02:01,943 [WARNING] (tts_controller) Unable to handle inbound WS message: object of type 'callable_iterator' has no len()
-2026-10-25 23:02:01,943 [WARNING] (tts_controller) Message: {'metadata': {'message_type': 'notification'}, 'payload': {'subscription': {'type': 'channel.cheer', 'cost': 9999}, 'event': {'user_name': 'jellycopter229', 'message': 'This is a test #lute m abc blah blah #kimberly hello'}}}
-2026-10-25 23:02:07,932 [INFO] (tts_gui) {'GENERAL': {'targetchannel': 'jellycopter229', 'outputdir': './tmp/', 'modeldir': './models/', 'assetsdir': './assets/', 'twitchappid': '8z44naxa2u2ev2iyyyn590yok7kufb', 'twitchappsecret': '8f6iqmtengr13wq9grwfkdw9pit7lm', 'split_text': '#'}, 'FLAGS': {'clear': False, 'pause': False, 'skip': False}, 'AI': {'active': True, 'costs': {'bits': 1, 'donations': 1, 'subscriptions': 1}, 'samplesdir': './assets/samples/', 'speakers': {'dwight': 'dwight_audio.wav', 'mike': 'michael_audio.wav'}}, 'CHAT': {'active': True}, 'LUTE': {'active': True, 'costs': {'bits': 1, 'donations': 1, 'subscriptions': 1}, 'pause_music': False}, 'SOUND': {'active': True, 'costs': {'bits': 1, 'donations': 1, 'subscriptions': 1}, 'sounds': {'ohno': 'scream.wav'}, 'soundsdir': './assets/sounds/'}, 'TTS': {'active': True, 'costs': {'bits': 1, 'donations': 1, 'subscriptions': 1}, 'streamelementskey': '-j4bkdUlRM-riejGs58o3dXn9r9tCXzPMyxWzzP-0CI9jezZ'}}
-2026-10-25 23:02:07,932 [INFO] (tts_controller) Shutting down
+2026-10-26 13:50:04,534 [WARNING] (tts_controller) Manager already running
+2026-10-26 13:50:04,535 [CRITICAL] (root) Uncaught exception occurred:
+Traceback (most recent call last):
+  File "C:\Users\alexd\Documents\CustomTTS\custom_tts.py", line 31, in <module>
+    controller = ttsController()
+                 ^^^^^^^^^^^^^^^
+  File "C:\Users\alexd\Documents\CustomTTS\tts_controller.py", line 58, in __init__
+    for section in self.example_parser.sections():
+                   ^^^^^^^^^^^^^^^^^^^
+AttributeError: 'ttsController' object has no attribute 'example_parser'

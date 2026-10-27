@@ -49,6 +49,7 @@ class ttsEcho:
 			shutil.copy(file, f"{self.config_manager['GENERAL']['modeldir']}echo/pytorch_model.safetensors")
 			logging.info(f'Echo: downloaded echo pytorch model')
 
+		if not os.path.exists(f"{self.config_manager['GENERAL']['modeldir']}echo/pca_state.safetensors"):
 			file = hf_hub_download(repo_id='jordand/echo-tts-base', filename='pca_state.safetensors')
 			shutil.copy(file, f"{self.config_manager['GENERAL']['modeldir']}echo/pca_state.safetensors")
 			logging.info(f'Echo: downloaded echo pca_state model')
@@ -59,6 +60,7 @@ class ttsEcho:
 			shutil.copy(file, f"{self.config_manager['GENERAL']['modeldir']}fish/pytorch_model.safetensors")
 			logging.info(f'Echo: downloaded fish pytorch_model model')
 
+		if not os.path.exists(f"{self.config_manager['GENERAL']['modeldir']}fish/config.json"):
 			file = hf_hub_download(repo_id='jordand/fish-s1-dac-min', filename='config.json')
 			shutil.copy(file, f"{self.config_manager['GENERAL']['modeldir']}fish/config.json")
 			logging.info(f'Echo: downloaded fish config')
@@ -123,7 +125,7 @@ class ttsEcho:
 		try:
 			start_time = time.time()
 
-			est_length = int((max(len(text), 250) / 250) * 320)
+			est_length = int((max(len(text), 250) / 250) * 640)
 			sample_fn = partial(
 				sample_euler_cfg_independent_guidances,
 				num_steps=20,
@@ -153,6 +155,11 @@ class ttsEcho:
 			torchaudio.save(filename, audio_out[0].cpu(), 44100)
 			end_time = time.time() - start_time
 			logger.info(f'Local generation succeeded in {end_time:.6f} seconds')
+
+			del sample_fn
+			del audio_out
+			
+			gc.collect()
 		except Exception as e:
 			logger.info(f'Local generation failed: {e}')
 			return False

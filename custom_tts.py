@@ -1,4 +1,6 @@
 import logging
+import shutil
+import os
 import torch.multiprocessing as mp
 import sys
 
@@ -18,6 +20,13 @@ if __name__ == '__main__':
 
     # MP freeze
     mp.freeze_support()
+
+    # check config exists
+    if not os.path.exists('config.ini'):
+        if os.path.exists('config.ini.example'):
+            shutil.copy('config.ini.example', 'config.ini')
+        else:
+            raise Exception('Config example file missing, aborting')
     
     controller = ttsController()
     controller.start_workers()

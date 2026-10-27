@@ -141,6 +141,9 @@ class ttsGui():
 						[
 							sg.Text('Action Trigger Value:'),
 							sg.Input(default_text=self.app.config['GENERAL']['split_text'], key='SPLIT_TEXT')
+						],
+						[
+							sg.Checkbox(text='Play Sound at Message Start', key='ALERT_ACTIVE', default=self.app.config['GENERAL']['alert_active'])
 						]
 					]),
 					sg.Tab('AI', [
@@ -163,6 +166,11 @@ class ttsGui():
 							sg.Text('Subscriptions:'),
 							sg.Push(),
 							sg.Input(key='AI_SUBS', default_text=self.app.config['AI']['costs']['subscriptions'])
+						],
+						[
+							sg.Text('Channel Points:'),
+							sg.Push(),
+							sg.Input(key='AI_POINTS', default_text=self.app.config['AI']['costs']['points'])
 						]
 					]),
 					sg.Tab('Lute', [
@@ -188,6 +196,11 @@ class ttsGui():
 							sg.Text('Subscriptions:'),
 							sg.Push(),
 							sg.Input(key='LUTE_SUBS', default_text=self.app.config['LUTE']['costs']['subscriptions'])
+						],
+						[
+							sg.Text('Channel Points:'),
+							sg.Push(),
+							sg.Input(key='LUTE_POINTS', default_text=self.app.config['LUTE']['costs']['points'])
 						]
 					]),
 					sg.Tab('Sound', [
@@ -210,6 +223,11 @@ class ttsGui():
 							sg.Text('Subscriptions:'),
 							sg.Push(),
 							sg.Input(key='SOUND_SUBS', default_text=self.app.config['SOUND']['costs']['subscriptions'])
+						],
+						[
+							sg.Text('Channel Points:'),
+							sg.Push(),
+							sg.Input(key='SOUND_POINTS', default_text=self.app.config['SOUND']['costs']['points'])
 						]
 					]),
 					sg.Tab('TTS', [
@@ -236,6 +254,11 @@ class ttsGui():
 							sg.Text('Subscriptions:'),
 							sg.Push(),
 							sg.Input(key='TTS_SUBS', default_text=self.app.config['TTS']['costs']['subscriptions'])
+						],
+						[
+							sg.Text('Channel Points:'),
+							sg.Push(),
+							sg.Input(key='TTS_POINTS', default_text=self.app.config['TTS']['costs']['points'])
 						]
 					]),
 				]], expand_x=True, expand_y=True)
@@ -319,7 +342,12 @@ class ttsGui():
 			elif event in ('MUTE_LUTE', 'MUTE_TTS', 'MUTE_AI', 'MUTE_SOUND'):
 				action_type = event.split('_')[1]
 				self.app.config[action_type]['active'] = not self.app.config[action_type]['active']
-				self.window[event].update(button_color='white on firebrick' if action_active else ('#420000', '#d4d7dd'))
+				self.window[event].update(button_color='white on firebrick' if self.app.config[action_type]['active'] else ('#420000', '#d4d7dd'))
+			elif event in ('LUTE_ACTIVE', 'TTS_ACTIVE', 'AI_ACTIVE', 'SOUND_ACTIVE'):
+				action_type = event.split('_')[0]
+				self.app.config[action_type]['active'] = not self.app.config[action_type]['active']
+				self.window[event].update(self.app.config[action_type]['active'])
+
 			elif event == 'SKIP':
 				self.app.config['FLAGS']['skip'] = True
 			elif event == 'PAUSE':
@@ -339,12 +367,12 @@ class ttsGui():
 						},
 						'payload': {
 							'subscription': {
-								'type': 'channel.cheer',
-								'cost': 9999
+								'type': 'channel.cheer'
 							},
 							'event': {
 								'user_name': values['USERNAME'],
-								'message': values['MSG']
+								'message': values['MSG'],
+								'bits': 9999
 							}
 						}
 					}, indent=4)
@@ -359,6 +387,7 @@ class ttsGui():
 				self.app.config['GENERAL']['twitchappid'] = values['APPID']
 				self.app.config['GENERAL']['twitchappsecret'] = values['APPSECRET']
 				self.app.config['GENERAL']['split_text'] = values['SPLIT_TEXT']
+				self.app.config['GENERAL']['alert_active'] = values['ALERT_ACTIVE']
 
 				self.app.config['AI']['active'] = values['AI_ACTIVE']
 				if self.app.config['AI']['active'] and self.app.device == 'cpu':
@@ -367,6 +396,7 @@ class ttsGui():
 					'bits': int(values['AI_BITS']),
 					'donations': int(values['AI_DONO']),
 					'subscriptions': int(values['AI_SUBS']),
+					'points': int(values['AI_POINTS'])
 				}
 
 				self.app.config['LUTE']['active'] = values['LUTE_ACTIVE']
@@ -374,6 +404,7 @@ class ttsGui():
 					'bits': int(values['LUTE_BITS']),
 					'donations': int(values['LUTE_DONO']),
 					'subscriptions': int(values['LUTE_SUBS']),
+					'points': int(values['LUTE_POINTS'])
 				}
 				self.app.config['LUTE']['pause_music'] = str(values['LUTE_PAUSEMUSIC'])
 
@@ -382,6 +413,7 @@ class ttsGui():
 					'bits': int(values['SOUND_BITS']),
 					'donations': int(values['SOUND_DONO']),
 					'subscriptions': int(values['SOUND_SUBS']),
+					'points': int(values['SOUND_POINTS'])
 				}
 
 				self.app.config['TTS']['active'] = values['TTS_ACTIVE']
@@ -389,6 +421,7 @@ class ttsGui():
 					'bits': int(values['TTS_BITS']),
 					'donations': int(values['TTS_DONO']),
 					'subscriptions': int(values['TTS_SUBS']),
+					'points': int(values['TTS_POINTS'])
 				}
 				self.app.config['TTS']['streamelementskey'] = values['STREAMELEMENTSKEY']
 
@@ -466,6 +499,12 @@ class ttsGui():
 						self.window['MUTE_LUTE'].update(button_color='white on firebrick' if not self.app.config['LUTE']['active'] else ('#420000', '#d4d7dd'))
 						self.window['MUTE_SOUND'].update(button_color='white on firebrick' if not self.app.config['SOUND']['active'] else ('#420000', '#d4d7dd'))
 						self.window['MUTE_TTS'].update(button_color='white on firebrick' if not self.app.config['TTS']['active'] else ('#420000', '#d4d7dd'))
+
+						self.window['AI_ACTIVE'].update(self.app.config['AI']['active'])
+						self.window['LUTE_ACTIVE'].update(self.app.config['LUTE']['active'])
+						self.window['SOUND_ACTIVE'].update(self.app.config['SOUND']['active'])
+						self.window['TTS_ACTIVE'].update(self.app.config['TTS']['active'])
+
 						self.window['SKIP'].update(button_color='white on firebrick' if self.app.config['FLAGS']['skip'] else ('#420000', '#d4d7dd'))
 						self.window['PAUSE'].update(button_color='white on firebrick' if self.app.config['FLAGS']['pause'] else ('#420000', '#d4d7dd'))
 						self.window['CLEAR'].update(button_color='white on firebrick' if self.app.config['FLAGS']['clear'] else ('#420000', '#d4d7dd'))

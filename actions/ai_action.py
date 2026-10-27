@@ -12,6 +12,7 @@ class aiAction(paidAction):
 	def update(self):
 		self.keywords = list(self.config['AI']['speakers'])
 		self.regex = rf'{self.config['GENERAL']['split_text']}({'|'.join(self.keywords)})[^{self.config['GENERAL']['split_text']}]*'
+				
 
 	def generate(self, msg):
 		if not bool(self.echo):

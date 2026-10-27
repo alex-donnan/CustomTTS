@@ -5,8 +5,9 @@ from twitchAPI.twitch import Twitch
 from twitchAPI.type import AuthScope
 
 from echo import ttsEcho
-from tts_websocket import ttsWebsocket
 from workers import *
+from tts_websocket import ttsWebsocket
+import events
 
 import ast
 import configparser
@@ -29,27 +30,22 @@ class ttsController:
 		AuthScope.BITS_READ,
 		AuthScope.CHANNEL_MODERATE,
 		AuthScope.CHANNEL_READ_SUBSCRIPTIONS,
-		AuthScope.USER_READ_CHAT
+		AuthScope.USER_READ_CHAT,
+		AuthScope.CHANNEL_READ_REDEMPTIONS
 	]
 	URI = 'https://api.twitch.tv/helix'
 	WS_ENDPOINT = 'wss://eventsub.wss.twitch.tv/ws' if not DEVMODE else 'ws://127.0.0.1:8080/ws'
 	SUBS_ENDPOINT = 'https://api.twitch.tv/helix/eventsub/subscriptions' if not DEVMODE else 'http://127.0.0.1:8080/eventsub/subscriptions'
 	SUBSCRIPTION_LIST = [
-		'channel.subscription.message',
 		'channel.subscription.gift',
+		'channel.subscription.message',
 		'channel.cheer',
-		'channel.chat.message'
+		'channel.chat.message',
+		'channel.channel_points_custom_reward_redemption.update'		
 	]
 
 	def __init__(self):
 		mp.set_start_method("spawn", force=True)
-
-		# check config exists
-		if not os.path.exists('config.ini'):
-			if os.path.exists('config.ini.example'):
-				shutil.copy('config.ini.example', 'config.ini')
-			else:
-				raise Exception('Config example file missing, aborting')
 
 		# config
 		self.process_manager = mp.Manager()
@@ -58,7 +54,7 @@ class ttsController:
 		except Exception as e:
 			logger.warn('Manager already running')
 		self.config_parser = configparser.ConfigParser()
-		self.config_parser.read('config.ini')
+		self.config_parser.read(['config.ini.example', 'config.ini'])
 		self.config = {}
 		for section in self.config_parser.sections():
 			self.config[section] = {}
@@ -69,7 +65,7 @@ class ttsController:
 					self.config[section][key] = ast.literal_eval(value)
 				else:
 					self.config[section][key] = value
-		
+
 		self.config_manager = self.process_manager.dict()
 		self.config_manager.update(self.config)
 
@@ -142,14 +138,25 @@ class ttsController:
 
 	# Shutdown
 	def shutdown(self):
-		self.gen_worker_process.terminate()
-		self.tts_worker_process.terminate()
 		#self.websocket_server.stop()
+
+		self.gen_worker_process.terminate()
+		self.gen_worker_process.join(timeout=2)
+		if self.gen_worker_process.is_alive():
+			logging.ingo('Gen timeout - killing')
+			self.gen_worker_process.kill()
+
+		self.tts_worker_process.terminate()
+		self.tts_worker_process.join(timeout=2)
+		if self.tts_worker_process.is_alive():
+			logging.ingo('TTS timeout - killing')
+			self.tts_worker_process.kill()
 
 		for action in self.actions.values():
 			action.shutdown()
 
 		self.save_config()
+
 		logger.info("Shutting down")
 
 	# Twitch WebSocket event methods
@@ -166,12 +173,15 @@ class ttsController:
 				self.session_start.action(msg)
 
 			if msg['metadata']['message_type'] != 'notification': return
-
-			message_list = []
-			message = msg['payload']['event']['message']
-			if type(message) == dict:
-				message = message['text']
-			message = message.strip()
+			
+			message = ''
+			user = ''
+			if hasattr(events, '__all__'):
+				for event in events.__all__:
+					if event.get_type() == msg['payload']['subscription']['type']:
+						message = event.get_text(msg).strip()
+						user = event.get_user(msg)
+						break
 
 			action_data = {}
 			for action in self.actions.values():
@@ -190,35 +200,34 @@ class ttsController:
 							'text': data.group()
 						}
 						matches.append(data)
-			matches.sort(key=lambda data: data['start'])
 
-			# next default action to missing sections
 			matches_final = matches[:]
-			for i, match in enumerate(matches):
-				if i == 0 and match['start'] > 0:
-					matches_final.insert(0, {
-						'key': 'DEFAULT',
-						'start': 0,
-						'end': match['start'],
-						'text': message[:match['start']]
-					})
-				if match['start'] - matches[max(0,i-1)]['end'] > 1:
-					match_ind = next((j for j, el in enumerate(matches_final) if el['start'] == match['start']))
-					matches_final.insert(match_ind, {
-						'key': 'DEFAULT',
-						'start': matches[i-1]['end'],
-						'end': match['start'],
-						'text': message[matches[i-1]['end']:match['start']]
-					})
-				if i == len(matches)-1 and match['end'] < len(message)-1:
-					matches_final.append({
-						'key': 'DEFAULT',
-						'start': match['end'],
-						'end': len(message),
-						'text': message[match['end']:]
-					})
-
-			if len(matches) == 0:
+			if len(matches) > 0:
+				matches.sort(key=lambda data: data['start'])
+				for i, match in enumerate(matches):
+					if i == 0 and match['start'] > 0:
+						matches_final.insert(0, {
+							'key': 'DEFAULT',
+							'start': 0,
+							'end': match['start'],
+							'text': message[:match['start']]
+						})
+					if match['start'] - matches[max(0,i-1)]['end'] > 1:
+						match_ind = next((j for j, el in enumerate(matches_final) if el['start'] == match['start']))
+						matches_final.insert(match_ind, {
+							'key': 'DEFAULT',
+							'start': matches[i-1]['end'],
+							'end': match['start'],
+							'text': message[matches[i-1]['end']:match['start']]
+						})
+					if i == len(matches)-1 and match['end'] < len(message)-1:
+						matches_final.append({
+							'key': 'DEFAULT',
+							'start': match['end'],
+							'end': len(message),
+							'text': message[match['end']:]
+						})
+			else:
 				matches_final.append({
 					'key': 'DEFAULT',
 					'start': 0,
@@ -226,6 +235,7 @@ class ttsController:
 					'text': message
 				})
 
+			message_list = []
 			for match in matches_final:
 				msg['sub_message'] = match['text']
 				msg_obj = self.actions[match['key']].action(msg)
@@ -237,7 +247,7 @@ class ttsController:
 
 			if len(message_list) > 0:
 				self.text_list.append({
-					'user_name': msg['payload']['event']['user_name'],
+					'user_name': user,
 					'message': message,
 					'filename': filename
 				})
