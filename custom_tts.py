@@ -8,6 +8,8 @@ from tts_controller import ttsController
 from tts_gui import ttsGui
 from setup_logging import setup_logging
 
+os.environ['HF_HUB_DISABLE_PROCESS_BARS'] = '1'
+
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         debug = True if sys.argv[1] == 'debug' else False
