@@ -13,7 +13,7 @@ for module in ['torch', 'torchcodec']:
 
 
 a = Analysis(
-    ['C:/Users/alexd/Documents/CustomTTS/custom_tts.py'],
+    ['C:/Users/alexd/Documents/CustomTTS/main.py'],
     pathex=[],
     binaries=binaries,
     datas=datas,

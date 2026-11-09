@@ -1,5 +1,4 @@
 from actions import *
-from echo import ttsEcho
 
 import logging
 logger = logging.getLogger(__name__)
@@ -13,14 +12,8 @@ class genWorker(mp.Process):
 		self.tts_queue = tts_queue
 		self.config_manager = config_manager
 		self.actions = actions
-		self.echo = None
 
 	def run(self):
-		# we kind of lazy load echo for AI stuff
-		self.echo = ttsEcho(self.config_manager)
-		if 'AI' in self.actions:
-			self.actions['AI'].echo = self.echo
-
 		# primary run loop for gen
 		while True:
 			try:

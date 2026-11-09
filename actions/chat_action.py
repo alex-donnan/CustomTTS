@@ -1,5 +1,5 @@
 from .app_action import appAction
-from tts_utils import *
+from utilities import *
 
 class chatAction(appAction):
 	def post_inist(self):
@@ -22,7 +22,7 @@ class chatAction(appAction):
 		if msg['metadata']['message_type'] == 'notification' and \
 			msg['payload']['subscription']['type'] == 'channel.chat.message' and \
 			any(map(lambda badge: badge['set_id'] == 'moderator' or badge['set_id'] == 'broadcaster', msg['payload']['event']['badges'])) and \
-			any(key in text for key in self.commands):
+			any(key.lower() in text for key in self.commands):
 			return key
 		return None
 

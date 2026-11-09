@@ -601,7 +601,8 @@ class ttsGui():
 		self.app.config['FLAGS']['skip'] = False
 
 	def skip_message(self, e):
-		self.app.config['FLAGS']['skip'] = True 
+		if len(self.app.text_list) > 0:
+			self.app.config['FLAGS']['skip'] = True 
 
 	def pause_queue(self):
 		self.app.config['FLAGS']['pause'] = True

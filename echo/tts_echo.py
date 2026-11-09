@@ -69,15 +69,20 @@ class ttsEcho:
 		# load local inf models
 		self.model = load_model(
 			path=f"{self.config_manager['GENERAL']['modeldir']}echo/pytorch_model.safetensors",
+			dtype=torch.int8,
 			device=self.device
 		)
+		if self.device == 'cuda':
+			self.model = self.model.half().cuda()
 		logger.info(f'Phase 1 (model) {time.time() - start_time:.6f} s')
 
 		self.fish_ae = load_fish_ae(
 			path=f"{self.config_manager['GENERAL']['modeldir']}fish/pytorch_model.safetensors",
-			dtype=torch.bfloat16,
+			dtype=torch.int8,
 			device=self.device
 		)
+		if self.device == 'cuda':
+			self.fish_ae = self.fish_ae.half().cuda()
 		logger.info(f'Phase 2 (fish AE) {time.time() - start_time:.6f} s')
 
 		self.pca_state = load_pca_state(

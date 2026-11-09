@@ -1,5 +1,5 @@
 from .app_action import appAction
-from tts_utils import *
+from utilities import *
 import events
 
 import logging
@@ -28,7 +28,7 @@ class paidAction(appAction):
 	def validate(self, msg, text) -> str | None:
 		self.update()
 
-		matches = list(re.finditer(self.regex, text, re.IGNORECASE))
+		matches = list(re.finditer(self.regex, text.lower(), re.IGNORECASE))
 		type = msg['payload']['subscription']['type']
 		cost = 0
 		if hasattr(events, '__all__'):

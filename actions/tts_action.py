@@ -1,5 +1,5 @@
 from .paid_action import paidAction
-from tts_utils import *
+from utilities import *
 
 import logging
 logger = logging.getLogger(__name__)
@@ -8,7 +8,7 @@ import requests
 class ttsAction(paidAction):
 	def post_init(self):
 		self.default = True
-		self.default_value = 'brian'
+		self.default_value = '#Brian'
 		self.voices = {
 			'brian': 'Brian',
 			'ivy': 'Ivy',

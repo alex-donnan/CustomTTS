@@ -4,7 +4,6 @@ from twitchAPI.oauth import UserAuthenticator, refresh_access_token
 from twitchAPI.twitch import Twitch
 from twitchAPI.type import AuthScope
 
-from echo import ttsEcho
 from workers import *
 from tts_websocket import ttsWebsocket
 import events
@@ -228,12 +227,16 @@ class ttsController:
 							'text': message[match['end']:]
 						})
 			else:
-				matches_final.append({
-					'key': 'DEFAULT',
-					'start': 0,
-					'end': len(message),
-					'text': message
-				})
+				message = f'#brian {message}'
+				matches = action.validate(msg, message)
+				if len(matches) > 0:
+					matches_final.append({
+						'key': 'DEFAULT',
+						'start': 0,
+						'end': len(message),
+						'text': message
+					})
+
 
 			message_list = []
 			for match in matches_final:
